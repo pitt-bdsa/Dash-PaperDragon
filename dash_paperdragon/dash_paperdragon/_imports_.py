@@ -1,5 +1,5 @@
-from .DashPaperDragon import DashPaperDragon
+from .DashPaperdragon import DashPaperdragon
 
 __all__ = [
-    "DashPaperDragon"
+    "DashPaperdragon"
 ]

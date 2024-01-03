@@ -15,20 +15,6 @@ function __init__()
             version = version,
             [
                 DashBase.Resource(
-    relative_package_path = "async-DashPaperDragon.js",
-    external_url = "https://unpkg.com/dash_paperdragon@0.0.1/dash_paperdragon/async-DashPaperDragon.js",
-    dynamic = nothing,
-    async = :true,
-    type = :js
-),
-DashBase.Resource(
-    relative_package_path = "async-DashPaperDragon.js.map",
-    external_url = "https://unpkg.com/dash_paperdragon@0.0.1/dash_paperdragon/async-DashPaperDragon.js.map",
-    dynamic = true,
-    async = nothing,
-    type = :js
-),
-DashBase.Resource(
     relative_package_path = "dash_paperdragon.min.js",
     external_url = nothing,
     dynamic = nothing,

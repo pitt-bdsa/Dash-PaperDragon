@@ -1,7 +1,7 @@
 /* eslint no-magic-numbers: 0 */
 import React, { useState } from 'react';
 
-import { DashPaperDragon } from '../lib';
+import { DashPaperdragon } from '../lib';
 
 const App = () => {
 
@@ -12,7 +12,7 @@ const App = () => {
 
     return (
         <div>
-            <DashPaperDragon
+            <DashPaperdragon
                 setProps={setProps}
                 {...state}
             />

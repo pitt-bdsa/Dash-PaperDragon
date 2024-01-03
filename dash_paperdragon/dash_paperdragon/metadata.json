@@ -1,7 +1,7 @@
 {
-  "src/lib/components/DashPaperDragon.react.js": {
+  "src/lib/components/DashPaperdragon.react.js": {
     "description": "ExampleComponent is an example component.\nIt takes a property, `label`, and\ndisplays it.\nIt renders an input with the property `value`\nwhich is editable by the user.",
-    "displayName": "DashPaperDragon",
+    "displayName": "DashPaperdragon",
     "methods": [],
     "props": {
       "id": {
@@ -24,6 +24,20 @@
         },
         "required": false,
         "description": "The value displayed in the input."
+      },
+      "imageSrc": {
+        "type": {
+          "name": "string"
+        },
+        "required": false,
+        "description": "the tile source for openseadrgon"
+      },
+      "zoomLevel": {
+        "type": {
+          "name": "number"
+        },
+        "required": false,
+        "description": "zoomLevel of the current OSD Viewer"
       },
       "setProps": {
         "type": {

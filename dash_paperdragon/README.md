@@ -1,8 +1,8 @@
-# Dash PaperDragon Component
+# Dash PaperDragon
 
-Dash PaperDragon Component is a Dash component library.
+Dash PaperDragon is a Dash component library.
 
-Dash Component combining OpenSeadragon and PaperJS for Annotations
+OpenSeaDragon and PaperJS component for Dash and the DSA
 
 Get started with:
 1. Install Dash and its dependencies: https://dash.plotly.com/installation
@@ -37,7 +37,7 @@ If you have selected install_dependencies during the prompt, you can skip this p
     $ pip install -r tests/requirements.txt
     ```
 
-### Write your component code in `src/lib/components/DashPaperDragon.react.js`.
+### Write your component code in `src/lib/components/DashPaperdragon.react.js`.
 
 - The demo app is in `src/demo` and you will import your example component code into your demo app.
 - Test your code in a Python environment:

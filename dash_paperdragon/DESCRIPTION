@@ -1,7 +1,7 @@
 Package: dashPaperdragon
-Title: Dash Component combining OpenSeadragon and PaperJS for Annotations
+Title: OpenSeaDragon and PaperJS component for Dash and the DSA
 Version: 0.0.1
-Description: Dash Component combining OpenSeadragon and PaperJS for Annotations
+Description: OpenSeaDragon and PaperJS component for Dash and the DSA
 Depends: R (>= 3.0.2)
 Imports: 
 Suggests: 

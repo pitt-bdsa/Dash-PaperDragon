@@ -1,6 +1,6 @@
 /* eslint-disable import/prefer-default-export */
-import DashPaperDragon from './components/DashPaperDragon.react';
+import DashPaperdragon from './components/DashPaperdragon.react';
 
 export {
-    DashPaperDragon
+    DashPaperdragon
 };
