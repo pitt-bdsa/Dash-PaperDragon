@@ -1,0 +1,11 @@
+include dash_paperdragon/dash_paperdragon.min.js
+include dash_paperdragon/dash_paperdragon.min.js.map
+include dash_paperdragon/async-*.js
+include dash_paperdragon/async-*.js.map
+include dash_paperdragon/*-shared.js
+include dash_paperdragon/*-shared.js.map
+include dash_paperdragon/metadata.json
+include dash_paperdragon/package-info.json
+include README.md
+include LICENSE
+include package.json
