@@ -1,1 +1,0 @@
-export const DashPaperDragon = React.lazy(() => import(/* webpackChunkName: "DashPaperDragon" */ './fragments/DashPaperDragon.react'));
