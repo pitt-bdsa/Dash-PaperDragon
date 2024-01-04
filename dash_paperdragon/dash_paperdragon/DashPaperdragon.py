@@ -16,6 +16,12 @@ Keyword arguments:
 - id (string; optional):
     The ID used to identify this component in Dash callbacks.
 
+- globalX (number; optional):
+    globalX of the current OSD Viewer.
+
+- globalY (number; optional):
+    globalY of the current OSD Viewer.
+
 - imageSrc (string; optional):
     the tile source for openseadrgon.
 
@@ -32,10 +38,10 @@ Keyword arguments:
     _namespace = 'dash_paperdragon'
     _type = 'DashPaperdragon'
     @_explicitize_args
-    def __init__(self, id=Component.UNDEFINED, label=Component.REQUIRED, value=Component.UNDEFINED, imageSrc=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, **kwargs):
-        self._prop_names = ['id', 'imageSrc', 'label', 'value', 'zoomLevel']
+    def __init__(self, id=Component.UNDEFINED, label=Component.REQUIRED, value=Component.UNDEFINED, imageSrc=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, globalX=Component.UNDEFINED, globalY=Component.UNDEFINED, **kwargs):
+        self._prop_names = ['id', 'globalX', 'globalY', 'imageSrc', 'label', 'value', 'zoomLevel']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'imageSrc', 'label', 'value', 'zoomLevel']
+        self.available_properties = ['id', 'globalX', 'globalY', 'imageSrc', 'label', 'value', 'zoomLevel']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

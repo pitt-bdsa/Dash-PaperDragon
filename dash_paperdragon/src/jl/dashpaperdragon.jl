@@ -13,13 +13,15 @@ It renders an input with the property `value`
 which is editable by the user.
 Keyword arguments:
 - `id` (String; optional): The ID used to identify this component in Dash callbacks.
+- `globalX` (Real; optional): globalX of the current OSD Viewer
+- `globalY` (Real; optional): globalY of the current OSD Viewer
 - `imageSrc` (String; optional): the tile source for openseadrgon
 - `label` (String; required): A label that will be printed when this component is rendered.
 - `value` (String; optional): The value displayed in the input.
 - `zoomLevel` (Real; optional): zoomLevel of the current OSD Viewer
 """
 function dashpaperdragon(; kwargs...)
-        available_props = Symbol[:id, :imageSrc, :label, :value, :zoomLevel]
+        available_props = Symbol[:id, :globalX, :globalY, :imageSrc, :label, :value, :zoomLevel]
         wild_props = Symbol[]
         return Component("dashpaperdragon", "DashPaperdragon", "dash_paperdragon", available_props, wild_props; kwargs...)
 end

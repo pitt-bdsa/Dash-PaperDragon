@@ -39,6 +39,20 @@
         "required": false,
         "description": "zoomLevel of the current OSD Viewer"
       },
+      "globalX": {
+        "type": {
+          "name": "number"
+        },
+        "required": false,
+        "description": "globalX of the current OSD Viewer"
+      },
+      "globalY": {
+        "type": {
+          "name": "number"
+        },
+        "required": false,
+        "description": "globalY of the current OSD Viewer"
+      },
       "setProps": {
         "type": {
           "name": "func"

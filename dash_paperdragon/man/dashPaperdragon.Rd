@@ -10,12 +10,16 @@ ExampleComponent is an example component. It takes a property, `label`, and disp
 }
 
 \usage{
-dashPaperdragon(id=NULL, imageSrc=NULL, label=NULL, value=NULL,
-zoomLevel=NULL)
+dashPaperdragon(id=NULL, globalX=NULL, globalY=NULL, imageSrc=NULL,
+label=NULL, value=NULL, zoomLevel=NULL)
 }
 
 \arguments{
 \item{id}{Character. The ID used to identify this component in Dash callbacks.}
+
+\item{globalX}{Numeric. globalX of the current OSD Viewer}
+
+\item{globalY}{Numeric. globalY of the current OSD Viewer}
 
 \item{imageSrc}{Character. the tile source for openseadrgon}
 
