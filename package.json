@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "osd-paperjs-annotation": "github:pearcetm/osd-paperjs-annotation"
+  }
+}

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import OpenSeadragon from 'openseadragon';
+import {PaperOverlay} from 'osd-paperjs-annotation';
+
 /**
  * ExampleComponent is an example component.
  * It takes a property, `label`, and
@@ -68,6 +70,8 @@ const DashPaperdragon = (props) => {
     });
     viewer.open(imageSrc);
     viewerRef.current = viewer;
+
+    window.overlay = viewer.createPaperOverlay();
 
     setupInfoHandler(viewer);
 
