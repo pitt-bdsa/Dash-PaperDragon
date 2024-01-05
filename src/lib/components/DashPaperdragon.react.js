@@ -73,6 +73,9 @@ const DashPaperdragon = (props) => {
 
     window.overlay = viewer.createPaperOverlay();
 
+    // to get current view in image coordinates:
+    // let rect = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
+
     setupInfoHandler(viewer);
 
   }, []);
