@@ -72,6 +72,27 @@ const DashPaperdragon = (props) => {
     viewerRef.current = viewer;
 
     window.overlay = viewer.createPaperOverlay();
+    window.paper = window.overlay.paperScope;
+
+    // to get current view in image coordinates:
+    // let currentViewRectangle = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
+
+    // // add a 200 x 200 pixel rectangle at the center of the TiledImage
+    // // with a red border and a strokeWidth of 2 that stays the same thickness no matter the zoom 
+    // let tiledImage = viewer.world.getItemAt(0); 
+    // let paperRectangle = new paper.Path.Rectangle({
+    //   point: [tiledImage.source.width/2, tiledImage.source.height/2], 
+    //   size: [200, 200], 
+    //   strokeColor: 'red',
+    //   rescale: {
+    //     strokeWidth: 2
+    //   }
+    // }); 
+
+    tiledImage.addPaperItem(paperRectangle);
+
+    // let annotation = new paper.Shape.Rectangle()
+    
 
     // to get current view in image coordinates:
     // let rect = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
