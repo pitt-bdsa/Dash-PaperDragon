@@ -1,18 +1,20 @@
 import dash_paperdragon
 from dash import Dash, callback, html, Input, Output
 import dash_bootstrap_components as dbc
+import json
 
 app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 
 osdElement =     dash_paperdragon.DashPaperdragon(
         id='input',
-        value='my-value',
-        label='my-label',
+        
+        
         imageSrc='https://api.digitalslidearchive.org/api/v1/item/5b9f02d7e62914002e94e684/tiles/dzi.dzi',
         zoomLevel=0,
         globalX=0,
         globalY=0,
+        viewPortBounds={}
     )
 
 coordinate_display =dbc.Container([
@@ -70,20 +72,24 @@ app.layout = dbc.Container(
 
 
 
-@callback(Output('viewportX_disp', 'children'), Input('input', 'globalX'))
-def update_viewport_x(viewport_x):
-    return '{:.3f}'.format(viewport_x)
+@callback(Output('mousePosX_disp', 'children'), Input('input', 'globalX'))
+def update_mouse_x(mouse_x):
+    return '{:.3f}'.format(mouse_x)
     
 
-@callback(Output('viewportY_disp', 'children'), Input('input', 'globalY'))
-def update_viewport_y(viewport_y):
-    return '{:.3f}'.format(viewport_y)
+@callback(Output('mousePosY_disp', 'children'), Input('input', 'globalY'))
+def update_mouse_y(mouse_y):
+    return '{:.3f}'.format(mouse_y)
 
 
 @callback(Output('zoomLevel_disp', 'children'), Input('input', 'zoomLevel'))
 def updateZoomLevel(currentZoom):
     return '{:.3f}'.format(currentZoom)
 
+
+@callback(Output('viewportX_disp', 'children'), Input('input', 'viewPortBounds'))
+def update_viewPortBoundsd(viewPortBounds):
+    return json.dumps(viewPortBounds)
 
 if __name__ == '__main__':
     app.run_server(debug=True)

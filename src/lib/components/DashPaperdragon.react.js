@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import OpenSeadragon from 'openseadragon';
-import {PaperOverlay} from 'osd-paperjs-annotation';
+import { PaperOverlay } from 'osd-paperjs-annotation';
 
 /**
  * ExampleComponent is an example component.
@@ -11,10 +11,7 @@ import {PaperOverlay} from 'osd-paperjs-annotation';
  * which is editable by the user.
  */
 const DashPaperdragon = (props) => {
-  const { id, label, setProps, value, imageSrc, zoomLevel, globalX, globalY } = props;
-
-
-
+  const { id, setProps, imageSrc, zoomLevel, globalX, globalY, viewPortBounds } = props;
   const viewerRef = useRef(null);
   const [currentPtX, setCurrentPtX] = useState('');
   const [currentPtY, setCurrentPtY] = useState('');
@@ -28,6 +25,9 @@ const DashPaperdragon = (props) => {
   const [imageSnapY, setImageSnapY] = useState('');
 
 
+
+  /* TO DO... maybe separate the handlers for on zoom, pan and resize so I am not updating all the properties
+  every time; hwoever this may be ok since the handlers are only called when the event occurs */
 
   /* Set up the mouse handler functions */
   const setupInfoHandler = (viewer) => {
@@ -50,6 +50,11 @@ const DashPaperdragon = (props) => {
       setProps({ globalX: image.x });
       setProps({ globalY: image.y });
 
+      // to get current view in image coordinates:
+      let rect = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
+
+      setProps({ viewPortBounds: rect });
+
     }
     let leaveHandler = function (event) {
       setViewportX('');
@@ -71,31 +76,42 @@ const DashPaperdragon = (props) => {
     viewer.open(imageSrc);
     viewerRef.current = viewer;
 
+    window.viewer = viewer; // for debugging
     window.overlay = viewer.createPaperOverlay();
     window.paper = window.overlay.paperScope;
+
+
+
+
+    viewer.addHandler('open', function (event) {
+
+      let tiledImage = viewer.world.getItemAt(0);
+      console.log(tiledImage)
+
+      if (tiledImage) {
+        let paperRectangle = new paper.Path.Rectangle({
+          point: [tiledImage.source.width / 2, tiledImage.source.height / 2],
+          size: [200, 200],
+          strokeColor: 'red',
+          rescale: {
+            strokeWidth: 2
+          }
+        });
+
+        tiledImage.addPaperItem(paperRectangle);
+
+      }
+
+    })
 
     // to get current view in image coordinates:
     // let currentViewRectangle = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
 
     // // add a 200 x 200 pixel rectangle at the center of the TiledImage
     // // with a red border and a strokeWidth of 2 that stays the same thickness no matter the zoom 
-    // let tiledImage = viewer.world.getItemAt(0); 
-    // let paperRectangle = new paper.Path.Rectangle({
-    //   point: [tiledImage.source.width/2, tiledImage.source.height/2], 
-    //   size: [200, 200], 
-    //   strokeColor: 'red',
-    //   rescale: {
-    //     strokeWidth: 2
-    //   }
-    // }); 
 
-    tiledImage.addPaperItem(paperRectangle);
 
-    // let annotation = new paper.Shape.Rectangle()
-    
 
-    // to get current view in image coordinates:
-    // let rect = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
 
     setupInfoHandler(viewer);
 
@@ -118,13 +134,7 @@ const DashPaperdragon = (props) => {
     setupInfoHandler(viewer);
   }, []);
 
-
-
-  return (
-    <div id={id}>
-      ExampleComponent: {label}&nbsp;
-      <div id="openseadragon-viewer" style={{ width: '800px', height: '600px' }}></div>
-      <input
+  /* <input
         value={value}
         onChange={
           /*
@@ -136,10 +146,12 @@ const DashPaperdragon = (props) => {
               * app server if a callback uses the modified prop as
               * Input or State.
               */
-          e => setProps({ value: e.target.value })
-        }
-      />
+  // e => setProps({ value: e.target.value })
 
+
+  return (
+    <div id={id}>
+      <div id="openseadragon-viewer" style={{ width: '800px', height: '600px' }}></div>
     </div>
   );
 }
@@ -155,12 +167,12 @@ DashPaperdragon.propTypes = {
   /**
    * A label that will be printed when this component is rendered.
    */
-  label: PropTypes.string.isRequired,
+  // label: PropTypes.string.isRequired,
 
   /**
    * The value displayed in the input.
    */
-  value: PropTypes.string,
+  // value: PropTypes.string,
   /**
    *the tile source for openseadrgon
   */
@@ -177,6 +189,10 @@ DashPaperdragon.propTypes = {
    * globalY of the current OSD Viewer
    */
   globalY: PropTypes.number,
+  /**
+   * viewportBounds of the current OSD Viewer
+   */
+  viewPortBounds: PropTypes.object,
   /**
    * Dash-assigned callback that should be called to report property changes
    * to Dash, to make them available for callbacks.
