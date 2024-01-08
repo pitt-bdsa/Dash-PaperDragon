@@ -1,5 +1,5 @@
 import dash_paperdragon
-from dash import Dash, callback, html, Input, Output
+from dash import Dash, callback, html, Input, Output, dcc
 import dash_bootstrap_components as dbc
 import json
 
@@ -8,13 +8,12 @@ app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 osdElement =     dash_paperdragon.DashPaperdragon(
         id='input',
-        
-        
         imageSrc='https://api.digitalslidearchive.org/api/v1/item/5b9f02d7e62914002e94e684/tiles/dzi.dzi',
         zoomLevel=0,
-        globalX=0,
-        globalY=0,
-        viewPortBounds={}
+        
+        viewPortBounds={"x":0,"y":0,"width":0,"height":0},
+        shapeList = {"pointList":[]},
+        curMousePosition = {"x":0,"y":0},
     )
 
 coordinate_display =dbc.Container([
@@ -28,41 +27,30 @@ coordinate_display =dbc.Container([
                     html.H5("Zoom Level", className="card-title"),
                     html.Div(id='zoomLevel_disp', className="card-text")
                 ])
-            ], className="mb-4")
+            ], className="mb-3"),width=4
         ),
         dbc.Col(
             dbc.Card([
                 dbc.CardBody([
-                    html.H5("Viewport X", className="card-title"),
-                    html.Div(id='viewportX_disp', className="card-text")
+                    html.H5("Viewport Bounds", className="card-title"),
+                    html.Div(id='viewportBounds_disp', className="card-text")
                 ])
-            ], className="mb-4")
+            ], className="mb-6"),width=8
         ),
-        dbc.Col(
+       
+         dbc.Col(
             dbc.Card([
                 dbc.CardBody([
-                    html.H5("Viewport Y", className="card-title"),
-                    html.Div(id='viewportY_disp', className="card-text")
+                    html.H5("Current Mouse Position", className="card-title"),
+                    html.Div(id='mousePos_disp', className="card-text")
                 ])
-            ], className="mb-4")
+            ], className="mb-6")
         ),
         dbc.Col(
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("Mouse X Position", className="card-title"),
-                    html.Div(id='mousePosX_disp', className="card-text")
-                ])
-            ], className="mb-4")
-        ),
-        dbc.Col(
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("Mouse Y Position", className="card-title"),
-                    html.Div(id='mousePosY_disp', className="card-text")
-                ])
-            ], className="mb-4")
+            dbc.Button("Update Point List", id="updatePointList_button", className="mb-4")
         )
-    ])])
+    ])],
+)
 
 
 app.layout = dbc.Container(
@@ -71,25 +59,45 @@ app.layout = dbc.Container(
 )
 
 
+import random
+def generate_random_point_list(num_points):
+    colors = ["red", "blue", "green"]
+    point_list = []
+    objectClasses = ["little","yellow","different","nuprin"]
+    for _ in range(num_points):
+        point = {
+            "x": random.randint(0, 10000),
+            "y": random.randint(0, 10000),
+            "width": random.randint(50, 200),
+            "height": random.randint(50, 200),
+            "color": random.choice(colors),
+            "objectClass": random.choice(objectClasses)
+        }
+        point_list.append(point)
 
-@callback(Output('mousePosX_disp', 'children'), Input('input', 'globalX'))
-def update_mouse_x(mouse_x):
-    return '{:.3f}'.format(mouse_x)
-    
+    return {"pointList": point_list}
 
-@callback(Output('mousePosY_disp', 'children'), Input('input', 'globalY'))
-def update_mouse_y(mouse_y):
-    return '{:.3f}'.format(mouse_y)
+@callback(Output('input', 'shapeList'), Input('updatePointList_button', 'n_clicks'))
+def update_shapeList(n_clicks):
+    if n_clicks is None:
+        return {"pointList":[]}
+    else:
+        return generate_random_point_list(1000)
 
+
+@callback(Output('mousePos_disp', 'children'), Input('input', 'curMousePosition'))
+def update_mouseCoords(curMousePosition):
+    return f'{int(curMousePosition["x"])},{int(curMousePosition["y"])}'
 
 @callback(Output('zoomLevel_disp', 'children'), Input('input', 'zoomLevel'))
 def updateZoomLevel(currentZoom):
     return '{:.3f}'.format(currentZoom)
 
 
-@callback(Output('viewportX_disp', 'children'), Input('input', 'viewPortBounds'))
+@callback(Output('viewportBounds_disp', 'children'), Input('input', 'viewPortBounds'))
 def update_viewPortBoundsd(viewPortBounds):
-    return json.dumps(viewPortBounds)
+    vp = viewPortBounds
+    return f'x: {int(vp["x"])} y: {int(vp["y"])} w: {int(vp["width"])} h: {int(vp["height"])}' 
 
 if __name__ == '__main__':
     app.run_server(debug=True)

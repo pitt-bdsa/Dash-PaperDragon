@@ -1,64 +1,44 @@
 import React, { useState, useEffect, useRef } from 'react';
-import PropTypes from 'prop-types';
+import PropTypes, { shape } from 'prop-types';
 import OpenSeadragon from 'openseadragon';
 import { PaperOverlay } from 'osd-paperjs-annotation';
 
-/**
- * ExampleComponent is an example component.
- * It takes a property, `label`, and
- * displays it.
- * It renders an input with the property `value`
- * which is editable by the user.
- */
+/* OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer */
 const DashPaperdragon = (props) => {
-  const { id, setProps, imageSrc, zoomLevel, globalX, globalY, viewPortBounds } = props;
+  const { id, setProps, imageSrc, zoomLevel, curMousePosition, viewPortBounds, shapeList, curShapeObject } = props;
   const viewerRef = useRef(null);
-  const [currentPtX, setCurrentPtX] = useState('');
-  const [currentPtY, setCurrentPtY] = useState('');
-  const [viewportX, setViewportX] = useState('');
-  const [viewportY, setViewportY] = useState('');
+  // const [viewportX, setViewportX] = useState('');
+  // const [viewportY, setViewportY] = useState('');
 
   const [imageX, setImageX] = useState('');
   const [imageY, setImageY] = useState('');
 
-  const [imageSnapX, setImageSnapX] = useState('');
-  const [imageSnapY, setImageSnapY] = useState('');
-
-
-
   /* TO DO... maybe separate the handlers for on zoom, pan and resize so I am not updating all the properties
-  every time; hwoever this may be ok since the handlers are only called when the event occurs */
+every time; hwoever this may be ok since the handlers are only called when the event occurs */
 
   /* Set up the mouse handler functions */
   const setupInfoHandler = (viewer) => {
-    let handler = function (event) {
-      let center = viewer.viewport.getCenter(true);
-      setImageSnapX(center.x);
-      setImageSnapY(center.y);
-    };
-    let events = ['pan', 'zoom', 'rotate', 'resize'];
-    events.forEach(event => viewer.addHandler(event, handler));
+
+    // TO DO: Add or deal with resize handler 
+    // let events = ['pan', 'zoom', 'rotate', 'resize'];
+
 
     let mouseCoords = function (event) {
       let viewport = viewer.viewport.viewerElementToViewportCoordinates(event.position);
       let image = viewer.viewport.viewerElementToImageCoordinates(event.position);
-      setViewportX(viewport.x);
-      setViewportY(viewport.y);
-      setImageX(image.x);
-      setImageY(image.y);
 
-      setProps({ globalX: image.x });
-      setProps({ globalY: image.y });
+      /* TO DO: Clarify diff between setImageX and setProps in terms of react functionality */
+      // setImageX(image.x);
+      // setImageY(image.y);
+      // setProps({ globalX: image.x });
+      // setProps({ globalY: image.y });
+      setProps({ curMousePosition: image })
 
-      // to get current view in image coordinates:
-      let rect = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
-
-      setProps({ viewPortBounds: rect });
 
     }
     let leaveHandler = function (event) {
-      setViewportX('');
-      setViewportY('');
+      // setViewportX('');
+      // setViewportY('');
       setImageX('');
       setImageY('');
     }
@@ -68,10 +48,10 @@ const DashPaperdragon = (props) => {
 
   useEffect(() => {
     // Initialize OpenSeadragon
-
     const viewer = OpenSeadragon({
       id: 'openseadragon-viewer',
       prefixUrl: '//openseadragon.github.io/openseadragon/images/', // Update with your image path
+      /* TO DO: add additional properties like navigator */
     });
     viewer.open(imageSrc);
     viewerRef.current = viewer;
@@ -80,44 +60,35 @@ const DashPaperdragon = (props) => {
     window.overlay = viewer.createPaperOverlay();
     window.paper = window.overlay.paperScope;
 
-
-
-
-    viewer.addHandler('open', function (event) {
-
-      let tiledImage = viewer.world.getItemAt(0);
-      console.log(tiledImage)
-
-      if (tiledImage) {
-        let paperRectangle = new paper.Path.Rectangle({
-          point: [tiledImage.source.width / 2, tiledImage.source.height / 2],
-          size: [200, 200],
-          strokeColor: 'red',
-          rescale: {
-            strokeWidth: 2
-          }
-        });
-
-        tiledImage.addPaperItem(paperRectangle);
-
-      }
-
-    })
-
-    // to get current view in image coordinates:
-    // let currentViewRectangle = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
-
-    // // add a 200 x 200 pixel rectangle at the center of the TiledImage
-    // // with a red border and a strokeWidth of 2 that stays the same thickness no matter the zoom 
-
-
-
-
     setupInfoHandler(viewer);
 
   }, []);
 
-  //   /* Track the current zoom level of the widget*/
+
+  function bindDashPointList(tiledImage, shapeList) {
+
+    for (let shape of shapeList.pointList) {
+
+      let curRect = new paper.Path.Rectangle({
+        point: [shape.x, shape.y],
+        size: [shape.width, shape.height],
+        strokeColor: shape.color,
+        fillColor: shape.color,
+        rescale: {
+          strokeWidth: 1
+        }
+      });
+      shape.PaperItem = curRect;
+      tiledImage.addPaperItem(curRect);
+
+      curRect.fillColor.alpha = 0.2;
+      curRect.onMouseEnter = function (event) { console.log(shape.color) }
+      curRect.onMouseLeave = function (event) { console.log(shape.color, "says goodbye") }
+    }
+  }
+
+
+  /* Track the current zoom level of the widget*/
   useEffect(() => {
     const viewer = viewerRef.current;
     viewer.addHandler('zoom', function (event) {
@@ -126,7 +97,16 @@ const DashPaperdragon = (props) => {
     });
   }, []);
 
+  /* Track the current viewport of the widget*/
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    viewer.addHandler('viewport-change', function (event) {
+      let rect = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
 
+      setProps({ viewPortBounds: rect });
+
+    });
+  }, []);
 
   /* Bind the infoHandler function to the current viewer */
   useEffect(() => {
@@ -134,23 +114,30 @@ const DashPaperdragon = (props) => {
     setupInfoHandler(viewer);
   }, []);
 
-  /* <input
-        value={value}
-        onChange={
-          /*
-              * Send the new value to the parent component.
-              * setProps is a prop that is automatically supplied
-              * by dash's front-end ("dash-renderer").
-              * In a Dash app, this will update the component's
-              * props and send the data back to the Python Dash
-              * app server if a callback uses the modified prop as
-              * Input or State.
-              */
-  // e => setProps({ value: e.target.value })
+  /* Create something to detect changes in the shapeList array */
+  useEffect(() => {
+
+    try {
+      const viewer = viewerRef.current;
+      let tiledImage = viewer.world.getItemAt(0);
+      console.log(tiledImage)
+      if (tiledImage) {
+
+        tiledImage.paperLayer.clear();
+        bindDashPointList(tiledImage, shapeList);
+      }
+    }
+    catch (error) {
+      console.log(error)
+    }
+
+  }, [shapeList]);
 
 
   return (
-    <div id={id}>
+
+    <div id={id} >
+
       <div id="openseadragon-viewer" style={{ width: '800px', height: '600px' }}></div>
     </div>
   );
@@ -163,18 +150,12 @@ DashPaperdragon.propTypes = {
    * The ID used to identify this component in Dash callbacks.
    */
   id: PropTypes.string,
-
   /**
-   * A label that will be printed when this component is rendered.
+   * shapeList is a list of shapes to be drawn on the image
    */
-  // label: PropTypes.string.isRequired,
-
+  shapeList: PropTypes.object,
   /**
-   * The value displayed in the input.
-   */
-  // value: PropTypes.string,
-  /**
-   *the tile source for openseadrgon
+   *the tile source for openseadragon
   */
   imageSrc: PropTypes.string,
   /**
@@ -182,17 +163,18 @@ DashPaperdragon.propTypes = {
    */
   zoomLevel: PropTypes.number,
   /**
-   * globalX of the current OSD Viewer
-   */
-  globalX: PropTypes.number,
-  /**
-   * globalY of the current OSD Viewer
-   */
-  globalY: PropTypes.number,
+   *  Current Mouse Position in Image Coordinates
+   *  */
+  curMousePosition: PropTypes.object,
   /**
    * viewportBounds of the current OSD Viewer
    */
   viewPortBounds: PropTypes.object,
+  /**
+   * 
+   * curShapeObject is the current shape object that was most recently moused over  
+   */
+  curShapeObject: PropTypes.object,
   /**
    * Dash-assigned callback that should be called to report property changes
    * to Dash, to make them available for callbacks.
@@ -201,3 +183,27 @@ DashPaperdragon.propTypes = {
 };
 
 export default DashPaperdragon;
+
+
+
+//https://legacy.reactjs.org/warnings/invalid-hook-call-warning.html
+/* <input
+      value={value}
+      onChange={
+        /*
+            * Send the new value to the parent component.
+            * setProps is a prop that is automatically supplied
+            * by dash's front-end ("dash-renderer").
+            * In a Dash app, this will update the component's
+            * props and send the data back to the Python Dash
+            * app server if a callback uses the modified prop as
+            * Input or State.
+            */
+  // e => setProps({ value: e.target.value })
+  // / Assuming your array is called 'data' and the column with the unique value is 'columnName'
+  // const rowIndex = data.findIndex(row => row.columnName === uniqueValue);
+
+  // if (rowIndex !== -1) {
+  //   // Update the row at the found index with the desired changes
+  //   data[rowIndex].columnName = newValue;
+  // }
