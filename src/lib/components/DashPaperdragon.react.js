@@ -58,6 +58,7 @@ every time; hwoever this may be ok since the handlers are only called when the e
 
     window.viewer = viewer; // for debugging
     window.overlay = viewer.createPaperOverlay();
+    window.overlay.autoRescaleItems(true); //enable auto-rescaling to keep stroke width or other properties constant despite zooming
     window.paper = window.overlay.paperScope;
 
     setupInfoHandler(viewer);

@@ -6,26 +6,27 @@
 \title{DashPaperdragon component}
 
 \description{
-ExampleComponent is an example component. It takes a property, `label`, and displays it. It renders an input with the property `value` which is editable by the user.
+
 }
 
 \usage{
-dashPaperdragon(id=NULL, globalX=NULL, globalY=NULL, imageSrc=NULL,
-label=NULL, value=NULL, zoomLevel=NULL)
+dashPaperdragon(id=NULL, curMousePosition=NULL, curShapeObject=NULL,
+imageSrc=NULL, shapeList=NULL, viewPortBounds=NULL,
+zoomLevel=NULL)
 }
 
 \arguments{
 \item{id}{Character. The ID used to identify this component in Dash callbacks.}
 
-\item{globalX}{Numeric. globalX of the current OSD Viewer}
+\item{curMousePosition}{Named list. Current Mouse Position in Image Coordinates}
 
-\item{globalY}{Numeric. globalY of the current OSD Viewer}
+\item{curShapeObject}{Named list. curShapeObject is the current shape object that was most recently moused over}
 
-\item{imageSrc}{Character. the tile source for openseadrgon}
+\item{imageSrc}{Character. the tile source for openseadragon}
 
-\item{label}{Character. A label that will be printed when this component is rendered.}
+\item{shapeList}{Named list. shapeList is a list of shapes to be drawn on the image}
 
-\item{value}{Character. The value displayed in the input.}
+\item{viewPortBounds}{Named list. viewportBounds of the current OSD Viewer}
 
 \item{zoomLevel}{Numeric. zoomLevel of the current OSD Viewer}
 }

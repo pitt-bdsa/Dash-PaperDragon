@@ -25,6 +25,7 @@
   "license": "MIT",
   "dependencies": {
     "openseadragon": "^4.1.0",
+    "osd-paperjs-annotation": "github:pearcetm/osd-paperjs-annotation",
     "ramda": "^0.26.1"
   },
   "devDependencies": {

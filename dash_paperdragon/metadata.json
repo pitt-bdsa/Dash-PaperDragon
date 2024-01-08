@@ -1,6 +1,6 @@
 {
   "src/lib/components/DashPaperdragon.react.js": {
-    "description": "ExampleComponent is an example component.\nIt takes a property, `label`, and\ndisplays it.\nIt renders an input with the property `value`\nwhich is editable by the user.",
+    "description": "",
     "displayName": "DashPaperdragon",
     "methods": [],
     "props": {
@@ -11,26 +11,19 @@
         "required": false,
         "description": "The ID used to identify this component in Dash callbacks."
       },
-      "label": {
+      "shapeList": {
         "type": {
-          "name": "string"
-        },
-        "required": true,
-        "description": "A label that will be printed when this component is rendered."
-      },
-      "value": {
-        "type": {
-          "name": "string"
+          "name": "object"
         },
         "required": false,
-        "description": "The value displayed in the input."
+        "description": "shapeList is a list of shapes to be drawn on the image"
       },
       "imageSrc": {
         "type": {
           "name": "string"
         },
         "required": false,
-        "description": "the tile source for openseadrgon"
+        "description": "the tile source for openseadragon"
       },
       "zoomLevel": {
         "type": {
@@ -39,19 +32,26 @@
         "required": false,
         "description": "zoomLevel of the current OSD Viewer"
       },
-      "globalX": {
+      "curMousePosition": {
         "type": {
-          "name": "number"
+          "name": "object"
         },
         "required": false,
-        "description": "globalX of the current OSD Viewer"
+        "description": "Current Mouse Position in Image Coordinates"
       },
-      "globalY": {
+      "viewPortBounds": {
         "type": {
-          "name": "number"
+          "name": "object"
         },
         "required": false,
-        "description": "globalY of the current OSD Viewer"
+        "description": "viewportBounds of the current OSD Viewer"
+      },
+      "curShapeObject": {
+        "type": {
+          "name": "object"
+        },
+        "required": false,
+        "description": "curShapeObject is the current shape object that was most recently moused over"
       },
       "setProps": {
         "type": {
