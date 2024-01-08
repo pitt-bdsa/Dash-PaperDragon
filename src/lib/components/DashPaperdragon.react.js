@@ -82,7 +82,7 @@ every time; hwoever this may be ok since the handlers are only called when the e
       tiledImage.addPaperItem(curRect);
 
       curRect.fillColor.alpha = 0.2;
-      curRect.onMouseEnter = function (event) { console.log(shape.color) }
+      curRect.onMouseEnter = function (event) { console.log(shape.color); setProps({ "curShapeObject": shape }) }
       curRect.onMouseLeave = function (event) { console.log(shape.color, "says goodbye") }
     }
   }

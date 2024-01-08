@@ -1,7 +1,7 @@
 import dash_paperdragon
 from dash import Dash, callback, html, Input, Output, dcc
 import dash_bootstrap_components as dbc
-import json
+import json, random
 
 app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -14,6 +14,7 @@ osdElement =     dash_paperdragon.DashPaperdragon(
         viewPortBounds={"x":0,"y":0,"width":0,"height":0},
         shapeList = {"pointList":[]},
         curMousePosition = {"x":0,"y":0},
+        curShapeObject = None,
     )
 
 coordinate_display =dbc.Container([
@@ -47,6 +48,14 @@ coordinate_display =dbc.Container([
             ], className="mb-6")
         ),
         dbc.Col(
+            dbc.Card([
+                dbc.CardBody([
+                    html.H5("Highlighted Object", className="card-title"),
+                    html.Div(id='curObject_disp', className="card-text")
+                ])
+            ], className="mb-6")
+        ),
+        dbc.Col(
             dbc.Button("Update Point List", id="updatePointList_button", className="mb-4")
         )
     ])],
@@ -59,19 +68,20 @@ app.layout = dbc.Container(
 )
 
 
-import random
+
 def generate_random_point_list(num_points):
     colors = ["red", "blue", "green"]
     point_list = []
     objectClasses = ["little","yellow","different","nuprin"]
-    for _ in range(num_points):
+    for idx, _ in enumerate(range(num_points)):
         point = {
             "x": random.randint(0, 10000),
             "y": random.randint(0, 10000),
             "width": random.randint(50, 200),
             "height": random.randint(50, 200),
             "color": random.choice(colors),
-            "objectClass": random.choice(objectClasses)
+            "objectClass": random.choice(objectClasses),
+            "objectId": f'object_{idx}'
         }
         point_list.append(point)
 
@@ -93,11 +103,18 @@ def update_mouseCoords(curMousePosition):
 def updateZoomLevel(currentZoom):
     return '{:.3f}'.format(currentZoom)
 
-
 @callback(Output('viewportBounds_disp', 'children'), Input('input', 'viewPortBounds'))
 def update_viewPortBoundsd(viewPortBounds):
     vp = viewPortBounds
     return f'x: {int(vp["x"])} y: {int(vp["y"])} w: {int(vp["width"])} h: {int(vp["height"])}' 
+
+
+
+@callback(Output('curObject_disp', 'children'), Input('input', 'curShapeObject'))
+def update_curShapeObject(curShapeObject):
+    return f'Current Selected Shape: {json.dumps(curShapeObject)}' 
+
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
