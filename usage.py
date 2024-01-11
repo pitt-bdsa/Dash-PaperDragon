@@ -7,10 +7,9 @@ app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 
 osdElement =     dash_paperdragon.DashPaperdragon(
-        id='input',
+        id='osdViewerComponent',
         imageSrc='https://api.digitalslidearchive.org/api/v1/item/5b9f02d7e62914002e94e684/tiles/dzi.dzi',
         zoomLevel=0,
-        
         viewPortBounds={"x":0,"y":0,"width":0,"height":0},
         shapeList = {"pointList":[]},
         curMousePosition = {"x":0,"y":0},
@@ -69,7 +68,7 @@ app.layout = dbc.Container(
 
 
 
-def generate_random_point_list(num_points):
+def generate_random_shapeList(num_points):
     colors = ["red", "blue", "green"]
     point_list = []
     objectClasses = ["little","yellow","different","nuprin"]
@@ -87,33 +86,31 @@ def generate_random_point_list(num_points):
 
     return {"pointList": point_list}
 
-@callback(Output('input', 'shapeList'), Input('updatePointList_button', 'n_clicks'))
+@callback(Output('osdViewerComponent', 'shapeList'), Input('updatePointList_button', 'n_clicks'))
 def update_shapeList(n_clicks):
     if n_clicks is None:
         return {"pointList":[]}
     else:
-        return generate_random_point_list(1000)
+        return generate_random_shapeList(1000)
 
 
-@callback(Output('mousePos_disp', 'children'), Input('input', 'curMousePosition'))
+@callback(Output('mousePos_disp', 'children'), Input('osdViewerComponent', 'curMousePosition'))
 def update_mouseCoords(curMousePosition):
     return f'{int(curMousePosition["x"])},{int(curMousePosition["y"])}'
 
-@callback(Output('zoomLevel_disp', 'children'), Input('input', 'zoomLevel'))
+@callback(Output('zoomLevel_disp', 'children'), Input('osdViewerComponent', 'zoomLevel'))
 def updateZoomLevel(currentZoom):
     return '{:.3f}'.format(currentZoom)
 
-@callback(Output('viewportBounds_disp', 'children'), Input('input', 'viewPortBounds'))
+@callback(Output('viewportBounds_disp', 'children'), Input('osdViewerComponent', 'viewPortBounds'))
 def update_viewPortBoundsd(viewPortBounds):
     vp = viewPortBounds
     return f'x: {int(vp["x"])} y: {int(vp["y"])} w: {int(vp["width"])} h: {int(vp["height"])}' 
 
 
-
-@callback(Output('curObject_disp', 'children'), Input('input', 'curShapeObject'))
+@callback(Output('curObject_disp', 'children'), Input('osdViewerComponent', 'curShapeObject'))
 def update_curShapeObject(curShapeObject):
     return f'Current Selected Shape: {json.dumps(curShapeObject)}' 
-
 
 
 if __name__ == '__main__':
