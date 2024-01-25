@@ -279,3 +279,5 @@ GitHub.sublime-settings
 # Julia manifest file names
 Manifest.toml
 JuliaManifest.toml
+dash_paperdragon/dash_paperdragon.min.js.map
+dash_paperdragon/dash_paperdragon.min.js

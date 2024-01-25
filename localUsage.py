@@ -2,17 +2,21 @@ import dash_paperdragon
 from dash import Dash, callback, html, Input, Output, dcc
 import dash_bootstrap_components as dbc
 import json, random
+from mxifImage_layout import mxif_layout, thumbnailString
+import dash_ag_grid
+import pandas as pd
 
 app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-imageSet = [{"label": "TCGA-2J-AAB4", "value":"https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi"},
-{"label":"TCGA-2J-AAB4-01Z-00-DX1", "value": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi"}]
 
+
+
+sampleUrl = f'http://localhost:8080/api/v1/item/6596f464714fd1118e983841/tiles/dzi.dzi?style={thumbnailString}'
 
 
 osdElement =     dash_paperdragon.DashPaperdragon(
         id='osdViewerComponent',
-        imageSrc='https://api.digitalslidearchive.org/api/v1/item/5b9f02d7e62914002e94e684/tiles/dzi.dzi',
+        imageSrc=sampleUrl,
         zoomLevel=0,
         viewPortBounds={"x":0,"y":0,"width":0,"height":0},
         shapeList = {"pointList":[]},
@@ -61,13 +65,15 @@ coordinate_display =dbc.Container([
         dbc.Col(
             dbc.Button("Update Point List", id="updatePointList_button", className="mb-4")
         )
-    ])],
+    ]),
+    ],
 )
+
+
 
 
 app.layout = dbc.Container(
     [dbc.Row(dbc.Col(html.H1("Dash Paperdragon", className="text-center"))), 
-     dbc.Row( dbc.Select(id="imageSelect", options=imageSet, value=imageSet[0]["value"], className="mb-4"), style={"width": "400px"}),
      dbc.Row([dbc.Col(osdElement,width=8),dbc.Col(coordinate_display,width=4)]) ]  
 )
 
@@ -99,8 +105,6 @@ def update_shapeList(n_clicks):
         return generate_random_shapeList(1000)
 
 
-
-## This updates the mouse tracker
 @callback(Output('mousePos_disp', 'children'), Input('osdViewerComponent', 'curMousePosition'))
 def update_mouseCoords(curMousePosition):
     return f'{int(curMousePosition["x"])},{int(curMousePosition["y"])}'
@@ -118,11 +122,6 @@ def update_viewPortBoundsd(viewPortBounds):
 @callback(Output('curObject_disp', 'children'), Input('osdViewerComponent', 'curShapeObject'))
 def update_curShapeObject(curShapeObject):
     return f'Current Selected Shape: {json.dumps(curShapeObject)}' 
-
-
-@callback(Output('osdViewerComponent', 'imageSrc'), Input('imageSelect', 'value'))
-def update_imageSrc(imageSrc):
-    return imageSrc
 
 
 if __name__ == '__main__':
