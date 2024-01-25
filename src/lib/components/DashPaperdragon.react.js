@@ -34,7 +34,6 @@ every time; hwoever this may be ok since the handlers are only called when the e
       // setProps({ globalY: image.y });
       setProps({ curMousePosition: image })
 
-
     }
     let leaveHandler = function (event) {
       // setViewportX('');
@@ -44,26 +43,55 @@ every time; hwoever this may be ok since the handlers are only called when the e
     }
     new OpenSeadragon.MouseTracker({ element: viewer.element, moveHandler: mouseCoords, leaveHandler: leaveHandler });
   }
-
-
   useEffect(() => {
-    // Initialize OpenSeadragon
-    const viewer = OpenSeadragon({
-      id: 'openseadragon-viewer',
-      prefixUrl: '//openseadragon.github.io/openseadragon/images/', // Update with your image path
-      /* TO DO: add additional properties like navigator */
-    });
-    viewer.open(imageSrc);
-    viewerRef.current = viewer;
+    if (viewerRef.current) {
+      // Update the image source
+      viewerRef.current.open(imageSrc);
+    } else {
+      // Create a new viewer
+      const viewer = OpenSeadragon({
+        id: 'openseadragon-viewer',
+        prefixUrl: '//openseadragon.github.io/openseadragon/images/', // Update with your image path
+        /* TO DO: add additional properties like navigator */
+      });
+      viewer.open(imageSrc);
+      viewerRef.current = viewer;
 
-    window.viewer = viewer; // for debugging
-    window.overlay = viewer.createPaperOverlay();
-    window.overlay.autoRescaleItems(true); //enable auto-rescaling to keep stroke width or other properties constant despite zooming
-    window.paper = window.overlay.paperScope;
+      window.viewer = viewer; // for debugging
+      window.overlay = viewer.createPaperOverlay();
+      window.overlay.autoRescaleItems(true); //enable auto-rescaling to keep stroke width or other properties constant despite zooming
+      window.paper = window.overlay.paperScope;
 
-    setupInfoHandler(viewer);
+      setupInfoHandler(viewer);
+    }
 
-  }, []);
+    // Clean up the viewer when the component unmounts
+    return () => {
+      if (viewerRef.current) {
+        viewerRef.current.destroy();
+        viewerRef.current = null;
+      }
+    };
+  }, [imageSrc]);
+
+  // useEffect(() => {
+  //   // Initialize OpenSeadragon
+  //   const viewer = OpenSeadragon({
+  //     id: 'openseadragon-viewer',
+  //     prefixUrl: '//openseadragon.github.io/openseadragon/images/', // Update with your image path
+  //     /* TO DO: add additional properties like navigator */
+  //   });
+  //   viewer.open(imageSrc);
+  //   viewerRef.current = viewer;
+
+  //   window.viewer = viewer; // for debugging
+  //   window.overlay = viewer.createPaperOverlay();
+  //   window.overlay.autoRescaleItems(true); //enable auto-rescaling to keep stroke width or other properties constant despite zooming
+  //   window.paper = window.overlay.paperScope;
+
+  //   setupInfoHandler(viewer);
+
+  // }, [imageSrc]);
 
 
   function bindDashPointList(tiledImage, shapeList) {
@@ -96,7 +124,7 @@ every time; hwoever this may be ok since the handlers are only called when the e
       const zoomValue = event.zoom;
       setProps({ zoomLevel: zoomValue });
     });
-  }, []);
+  }, [imageSrc]);
 
   /* Track the current viewport of the widget*/
   useEffect(() => {
@@ -107,13 +135,16 @@ every time; hwoever this may be ok since the handlers are only called when the e
       setProps({ viewPortBounds: rect });
 
     });
-  }, []);
+  }, [imageSrc]);
 
+
+  // I am setting this up to fire when the imageSrc changes as that should be what causes a viewer
+  // reload-- at least for now..
   /* Bind the infoHandler function to the current viewer */
   useEffect(() => {
     const viewer = viewerRef.current;
     setupInfoHandler(viewer);
-  }, []);
+  }, [imageSrc]);
 
   /* Create something to detect changes in the shapeList array */
   useEffect(() => {
