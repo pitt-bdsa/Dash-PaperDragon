@@ -12,20 +12,23 @@ Keyword arguments:
 - id (string; optional):
     The ID used to identify this component in Dash callbacks.
 
+- config (dict; optional):
+    config is a dictionary of options for setting up the component and
+    initial rendering.
+
 - curMousePosition (dict; optional):
     Current Mouse Position in Image Coordinates.
-
-- curShapeObject (dict; optional):
-    curShapeObject is the current shape object that was most recently
-    moused over.
 
 - imageSrc (string; optional):
     the tile source for openseadragon.
 
-- shapeList (dict; optional):
-    shapeList is a list of shapes to be drawn on the image.
+- inputToPaper (dict; optional):
+    data sent from dash to paper.
 
-- viewPortBounds (dict; optional):
+- outputFromPaper (dict; optional):
+    data sent from paper back to dash.
+
+- viewportBounds (dict; optional):
     viewportBounds of the current OSD Viewer.
 
 - zoomLevel (number; optional):
@@ -35,10 +38,10 @@ Keyword arguments:
     _namespace = 'dash_paperdragon'
     _type = 'DashPaperdragon'
     @_explicitize_args
-    def __init__(self, id=Component.UNDEFINED, shapeList=Component.UNDEFINED, imageSrc=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, curMousePosition=Component.UNDEFINED, viewPortBounds=Component.UNDEFINED, curShapeObject=Component.UNDEFINED, **kwargs):
-        self._prop_names = ['id', 'curMousePosition', 'curShapeObject', 'imageSrc', 'shapeList', 'viewPortBounds', 'zoomLevel']
+    def __init__(self, id=Component.UNDEFINED, config=Component.UNDEFINED, imageSrc=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, curMousePosition=Component.UNDEFINED, viewportBounds=Component.UNDEFINED, outputFromPaper=Component.UNDEFINED, inputToPaper=Component.UNDEFINED, **kwargs):
+        self._prop_names = ['id', 'config', 'curMousePosition', 'imageSrc', 'inputToPaper', 'outputFromPaper', 'viewportBounds', 'zoomLevel']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'curMousePosition', 'curShapeObject', 'imageSrc', 'shapeList', 'viewPortBounds', 'zoomLevel']
+        self.available_properties = ['id', 'config', 'curMousePosition', 'imageSrc', 'inputToPaper', 'outputFromPaper', 'viewportBounds', 'zoomLevel']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

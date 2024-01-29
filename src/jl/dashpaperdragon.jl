@@ -9,15 +9,16 @@ A DashPaperdragon component.
 
 Keyword arguments:
 - `id` (String; optional): The ID used to identify this component in Dash callbacks.
+- `config` (Dict; optional): config is a dictionary of options for setting up the component and initial rendering
 - `curMousePosition` (Dict; optional): Current Mouse Position in Image Coordinates
-- `curShapeObject` (Dict; optional): curShapeObject is the current shape object that was most recently moused over
 - `imageSrc` (String; optional): the tile source for openseadragon
-- `shapeList` (Dict; optional): shapeList is a list of shapes to be drawn on the image
-- `viewPortBounds` (Dict; optional): viewportBounds of the current OSD Viewer
+- `inputToPaper` (Dict; optional): data sent from dash to paper
+- `outputFromPaper` (Dict; optional): data sent from paper back to dash
+- `viewportBounds` (Dict; optional): viewportBounds of the current OSD Viewer
 - `zoomLevel` (Real; optional): zoomLevel of the current OSD Viewer
 """
 function dashpaperdragon(; kwargs...)
-        available_props = Symbol[:id, :curMousePosition, :curShapeObject, :imageSrc, :shapeList, :viewPortBounds, :zoomLevel]
+        available_props = Symbol[:id, :config, :curMousePosition, :imageSrc, :inputToPaper, :outputFromPaper, :viewportBounds, :zoomLevel]
         wild_props = Symbol[]
         return Component("dashpaperdragon", "DashPaperdragon", "dash_paperdragon", available_props, wild_props; kwargs...)
 end

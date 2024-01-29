@@ -11,12 +11,12 @@
         "required": false,
         "description": "The ID used to identify this component in Dash callbacks."
       },
-      "shapeList": {
+      "config": {
         "type": {
           "name": "object"
         },
         "required": false,
-        "description": "shapeList is a list of shapes to be drawn on the image"
+        "description": "config is a dictionary of options for setting up the component and initial rendering"
       },
       "imageSrc": {
         "type": {
@@ -39,19 +39,26 @@
         "required": false,
         "description": "Current Mouse Position in Image Coordinates"
       },
-      "viewPortBounds": {
+      "viewportBounds": {
         "type": {
           "name": "object"
         },
         "required": false,
         "description": "viewportBounds of the current OSD Viewer"
       },
-      "curShapeObject": {
+      "outputFromPaper": {
         "type": {
           "name": "object"
         },
         "required": false,
-        "description": "curShapeObject is the current shape object that was most recently moused over"
+        "description": "data sent from paper back to dash"
+      },
+      "inputToPaper": {
+        "type": {
+          "name": "object"
+        },
+        "required": false,
+        "description": "data sent from dash to paper"
       },
       "setProps": {
         "type": {
