@@ -5,9 +5,6 @@ import json, random
 
 app = Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-imageSet = [{"label": "TCGA-2J-AAB4", "value":"https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi"},
-{"label":"TCGA-2J-AAB4-01Z-00-DX1", "value": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi"}]
-
 # For now these are global variables; can be redis if multiple windows can interact with the same server
 colors = ["red", "orange", "yellow", "green", "blue", "purple"]
 classes = ['a', 'b', 'c', 'd', 'e', 'f']
@@ -35,7 +32,38 @@ def getId():
 # supported callback functions:
 # createItem
 
+print('Testing...')
+
+tileSources = [
+    {
+        "label": "TCGA-2J-AAB4", 
+        "value":json.dumps("https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi")
+    },
+    {
+        "label":"TCGA-2J-AAB4-01Z-00-DX1", 
+        "value": json.dumps("https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi")
+    },
+    {
+        "label": "Image stack",
+        "value": json.dumps([
+            {
+                "tileSource":"https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
+                "x": 0,
+                "y": 0,
+                "opacity": 1
+            },
+            {
+                "tileSource":"https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
+                "x": 1,
+                "y": 0.5,
+                "opacity": 0.5
+            }
+        ])
+    }
+]
+
 config = {
+    
     "eventBindings": [
         {"event": "keyDown", "key": "c", "action": "cycleProp", "property": "class" },
         {"event": "keyDown", "key": "x", "action": "cyclePropReverse", "property": "class"},
@@ -90,8 +118,8 @@ callbacks = {
 ## Create element
 osdElement =     dash_paperdragon.DashPaperdragon(
         id='osdViewerComponent',
+        # tileSources = tileSources[0],
         config = config,
-        imageSrc='https://api.digitalslidearchive.org/api/v1/item/5b9f02d7e62914002e94e684/tiles/dzi.dzi',
         zoomLevel=0,
         viewportBounds={"x":0,"y":0,"width":0,"height":0},
         curMousePosition = {"x":0,"y":0},
@@ -147,7 +175,7 @@ coordinate_display =dbc.Container([
 
 app.layout = dbc.Container(
     [dbc.Row(dbc.Col(html.H1("Dash Paperdragon", className="text-center"))), 
-     dbc.Row( dbc.Select(id="imageSelect", options=imageSet, value=imageSet[0]["value"], className="mb-4"), style={"width": "400px"}),
+     dbc.Row( dbc.Select(id="imageSelect", options=tileSources, value=tileSources[0]["value"], className="mb-4"), style={"width": "400px"}),
      dbc.Row([dbc.Col(osdElement,width=8),dbc.Col(coordinate_display,width=4)]) ]  
 )
 ## End of layout
@@ -254,10 +282,10 @@ def update_viewportBounds(viewPortBounds):
 #     return f'Current Selected Shape: {json.dumps(curShapeObject)}' 
 
 
-@callback(Output('osdViewerComponent', 'imageSrc'), 
+@callback(Output('osdViewerComponent', 'tileSources'), 
           Input('imageSelect', 'value'))
-def update_imageSrc(imageSrc):
-    return imageSrc
+def update_imageSrc(tileSources):
+    return tileSources
 
 def createItem(data):
     print('createItem', data)

@@ -7,7 +7,7 @@ import { AnnotationToolkit, RectangleTool } from 'osd-paperjs-annotation';
 const DashPaperdragon = (props) => {
   const { id, // id of the div element created for this viewer
           config, // configuration options for the component
-          imageSrc, // the image source to view; can change depending on user input
+          tileSources, // the image source to view; can change depending on user input
           zoomLevel, // output property, sent by the component back to dash
           curMousePosition, // output property, sent by the component back to dash
           viewportBounds, // output property, sent by the component back to dash
@@ -64,11 +64,11 @@ const DashPaperdragon = (props) => {
 
   /** Open an image based on imageSrc property */
   useEffect(() => {
-    if (viewerRef.current) {
+    if (viewerRef.current && tileSources) {
       // Update the image source
-      viewerRef.current.open(imageSrc);
+      viewerRef.current.open(JSON.parse(tileSources));
     } 
-  }, [imageSrc]);
+  }, [tileSources]);
 
   /* respond to changes in the inputToPaper property */
   useEffect(handleInputToPaper, [inputToPaper]);
@@ -297,21 +297,29 @@ const DashPaperdragon = (props) => {
     });
 
     function onViewportChange(event) {
-      let rect = viewer.viewport.viewportToImageRectangle(viewer.viewport.getBounds())
-      setProps({ viewportBounds: rect });
+      let tiledImage = viewer.world.getItemAt(0);
+      if(tiledImage){
+        let rect = tiledImage.viewportToImageRectangle(viewer.viewport.getBounds())
+        setProps({ viewportBounds: rect });
+      }
+      
     }
     viewer.addHandler('viewport-change', onViewportChange);
     viewer.addHandler('open', onViewportChange);
 
 
     let moveHandler = function (event) {
-      let imageCoords = viewer.viewport.viewerElementToImageCoordinates(event.position);
-      mousePosRef.current = imageCoords;
-      setProps({ curMousePosition: imageCoords }); // TODO: can these avoid a round trip to the server?
+      let tiledImage = viewer.world.getItemAt(0);
+      if(tiledImage){
+        let imageCoords = tiledImage.viewerElementToImageCoordinates(event.position);
+        mousePosRef.current = imageCoords;
+        setProps({ curMousePosition: imageCoords }); 
+      }
+      
     }
     
     let leaveHandler = function () {
-      setProps({ curMousePosition: {x: null, y: null } }); // TODO: can these avoid a round trip to the server?
+      setProps({ curMousePosition: {x: null, y: null } }); 
     }
 
     // create a mousetracker for the viewer, and hook up the handlers
@@ -428,7 +436,10 @@ DashPaperdragon.propTypes = {
   /**
    *the tile source for openseadragon
   */
-  imageSrc: PropTypes.string,
+  tileSources: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.array]),
+
   /**
    * zoomLevel of the current OSD Viewer
    */

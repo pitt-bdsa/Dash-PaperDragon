@@ -10,8 +10,8 @@
 }
 
 \usage{
-dashPaperdragon(id=NULL, config=NULL, curMousePosition=NULL, imageSrc=NULL,
-inputToPaper=NULL, outputFromPaper=NULL,
+dashPaperdragon(id=NULL, config=NULL, curMousePosition=NULL,
+inputToPaper=NULL, outputFromPaper=NULL, tileSources=NULL,
 viewportBounds=NULL, zoomLevel=NULL)
 }
 
@@ -22,11 +22,11 @@ viewportBounds=NULL, zoomLevel=NULL)
 
 \item{curMousePosition}{Named list. Current Mouse Position in Image Coordinates}
 
-\item{imageSrc}{Character. the tile source for openseadragon}
-
 \item{inputToPaper}{Named list. data sent from dash to paper}
 
 \item{outputFromPaper}{Named list. data sent from paper back to dash}
+
+\item{tileSources}{Character | unnamed list. the tile source for openseadragon}
 
 \item{viewportBounds}{Named list. viewportBounds of the current OSD Viewer}
 
