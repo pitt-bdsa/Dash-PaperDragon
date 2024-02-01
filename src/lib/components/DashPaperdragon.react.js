@@ -6,15 +6,15 @@ import { AnnotationToolkit, RectangleTool } from 'osd-paperjs-annotation';
 /* OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer */
 const DashPaperdragon = (props) => {
   const { id, // id of the div element created for this viewer
-          config, // configuration options for the component
-          tileSources, // the image source to view; can change depending on user input
-          zoomLevel, // output property, sent by the component back to dash
-          curMousePosition, // output property, sent by the component back to dash
-          viewportBounds, // output property, sent by the component back to dash
-          outputFromPaper, // output property, seny by the component back to dash
-          inputToPaper, // input property, telling the component how to update the paper overlay
-          setProps,
-        } = props;
+    config, // configuration options for the component
+    tileSources, // the image source to view; can change depending on user input
+    zoomLevel, // output property, sent by the component back to dash
+    curMousePosition, // output property, sent by the component back to dash
+    viewportBounds, // output property, sent by the component back to dash
+    outputFromPaper, // output property, seny by the component back to dash
+    inputToPaper, // input property, telling the component how to update the paper overlay
+    setProps,
+  } = props;
 
   // Set up references to common variables
   const viewerRef = useRef(null);
@@ -23,8 +23,8 @@ const DashPaperdragon = (props) => {
   const toolkitRef = useRef(null);
   const paperRef = useRef(null);
   const hoveredItemRef = useRef(null);
-  const mousePosRef = useRef({x: 0, y: 0});
-  const paperMousePosRef = useRef({x: 0, y: 0});
+  const mousePosRef = useRef({ x: 0, y: 0 });
+  const paperMousePosRef = useRef({ x: 0, y: 0 });
   const keyDownRef = useRef(null);
   const creatingRef = useRef(null);
 
@@ -39,7 +39,7 @@ const DashPaperdragon = (props) => {
     newItem,
   });
 
-  function raiseEvent(eventName, data){
+  function raiseEvent(eventName, data) {
     executeCallbacks(eventName, data);
   }
 
@@ -48,7 +48,7 @@ const DashPaperdragon = (props) => {
   useEffect(() => {
     if (!viewerRef.current) {
       createViewer();
-    } 
+    }
     // Clean up the viewer when the component unmounts
     return () => {
       if (viewerRef.current) {
@@ -66,21 +66,21 @@ const DashPaperdragon = (props) => {
   useEffect(() => {
     if (viewerRef.current && tileSources) {
       // Update the image source
-      viewerRef.current.open(JSON.parse(tileSources));
-    } 
+      viewerRef.current.open(tileSources);
+    }
   }, [tileSources]);
 
   /* respond to changes in the inputToPaper property */
   useEffect(handleInputToPaper, [inputToPaper]);
-  function handleInputToPaper(){
+  function handleInputToPaper() {
     // if the tiledImage or inputToPaper are null, nothing to do, just return
-    if(!inputToPaper || !tiledImageRef.current){
+    if (!inputToPaper || !tiledImageRef.current) {
       return;
     }
 
-    for(const action of inputToPaper.actions){
+    for (const action of inputToPaper.actions) {
       let func = actionsRef.current[action.type];
-      if(!func){
+      if (!func) {
         alert('No action defined for type ' + action.type);
       } else {
         console.log('Action:', action);
@@ -88,46 +88,46 @@ const DashPaperdragon = (props) => {
       }
     }
 
-    
-    
+
+
     // clear the inputToPaper property so we can listen for more changes
     setProps(inputToPaper, null);
   }
 
   // Functions that can be accessed by Dash via actions and/or bindings
-  function clearItems(){
+  function clearItems() {
     tiledImageRef.current.paperLayer.clear();
   }
 
-  function drawItems(action){
+  function drawItems(action) {
     const list = action.itemList || [];
-    if(!list.length){
+    if (!list.length) {
       console.warning('No items were provided in the itemList property');
     }
-    for(const i of list){
+    for (const i of list) {
       const item = makeItem(i);
       tiledImageRef.current.addPaperItem(item);
     }
   }
 
-  function deleteItem(opts){
-    if(opts.item){
+  function deleteItem(opts) {
+    if (opts.item) {
       opts.item.remove();
-    } else if (opts.id){
+    } else if (opts.id) {
       console.log(`deleteItem with id ${opts.id}`);
-      tiledImageRef.current.paperItems.filter(i => i.data.userdata.objectId == opts.id).forEach(item=>item.remove());
+      tiledImageRef.current.paperItems.filter(i => i.data.userdata.objectId == opts.id).forEach(item => item.remove());
     } else {
       console.error('deleteItem  called without item or id field');
     }
-    
+
   }
 
-  function newItem(opts){
-    if(creatingRef.current){
+  function newItem(opts) {
+    if (creatingRef.current) {
       const item = creatingRef.current;
 
       paperRef.current.rectangleTool.deactivate(true);
-      if(item.isPlaceholder){
+      if (item.isPlaceholder) {
         item.remove();
         console.log('Rectangle aborted');
       } else {
@@ -135,21 +135,21 @@ const DashPaperdragon = (props) => {
         console.log('Item created', item);
         // makeItem(config.defaultStyle);
         const bounds = item.bounds;
-        raiseEvent('item-created',{
-          point:{x: bounds.x, y: bounds.y},
-          size:{width: bounds.width, height: bounds.height}
+        raiseEvent('item-created', {
+          point: { x: bounds.x, y: bounds.y },
+          size: { width: bounds.width, height: bounds.height }
         })
         item.remove();
         creatingRef.current = null;
       }
-      
+
     } else {
-      console.log('newItem called',opts, paperRef.current.rectangleTool);
+      console.log('newItem called', opts, paperRef.current.rectangleTool);
       let placeholder = toolkitRef.current.makePlaceholderItem(config.defaultStyle);
-      
+
       let item = placeholder.paperItem;
 
-      if(config.defaultStyle.fillOpacity !== undefined){
+      if (config.defaultStyle.fillOpacity !== undefined) {
         item.fillColor.alpha = config.defaultStyle.fillOpacity;
       }
 
@@ -157,64 +157,64 @@ const DashPaperdragon = (props) => {
       item.isPlaceholder = true;
       tiledImageRef.current.addPaperItem(item);
       creatingRef.current = item;
-      item.on('item-replaced',(ev)=>creatingRef.current = ev.item);
+      item.on('item-replaced', (ev) => creatingRef.current = ev.item);
       paperRef.current.rectangleTool.activate();
     }
-    
+
   }
 
-  function cycleProp(opts, bound, reverse){
+  function cycleProp(opts, bound, reverse) {
     let item = opts.item;
     let prop = bound.property;
-    if(!item || !prop){
+    if (!item || !prop) {
       console.error('There was a problem with the item or property');
       return;
     }
 
     // look up the array of options for this property from the config object
     let propArray = config.properties[prop];
-    if(!propArray || !Array.isArray(propArray)){
+    if (!propArray || !Array.isArray(propArray)) {
       console.error(`config.${prop} is ${typeof propArray}; it must be an Array to use cycleProp`);
       return;
     }
-    
+
     // figure out what the new value for this property is, and set it on the item.data object
     let currentVal = item.data.userdata[prop];
-    let newIndex = (propArray.indexOf(currentVal) + (reverse ? propArray.length-1 : 1)) % propArray.length;
-    let newVal = propArray[ newIndex ];
+    let newIndex = (propArray.indexOf(currentVal) + (reverse ? propArray.length - 1 : 1)) % propArray.length;
+    let newVal = propArray[newIndex];
     item.data.userdata[prop] = newVal;
 
     // look up a style that goes with this property key:value pair
     let style = config.styles && config.styles[prop] && config.styles[prop][newVal];
-    if(style){
+    if (style) {
       item.set(style);
     }
-    
+
     // refresh the fill opacity and rescalable properties
-    if(item.fillColor){
+    if (item.fillColor) {
       item.fillColor.alpha = item.fillOpacity;
     }
     item.applyRescale();
 
-    raiseEvent('property-changed', {item: item.data.userdata, property: prop});
-    
+    raiseEvent('property-changed', { item: item.data.userdata, property: prop });
+
   }
 
-  function cyclePropReverse(opts, bound){
+  function cyclePropReverse(opts, bound) {
     cycleProp(opts, bound, true);
   }
 
-  function dashCallback(action, data){
+  function dashCallback(action, data) {
     console.log('dashCallback', action, data);
-    setProps({outputFromPaper: {callback: action.callback, data: data}});
+    setProps({ outputFromPaper: { callback: action.callback, data: data } });
   }
 
 
-  function createViewer(){
+  function createViewer() {
 
     // if viewer exists, return immediately
-    if(viewerRef.current){
-      return; 
+    if (viewerRef.current) {
+      return;
     }
 
     // Create a new viewer
@@ -224,12 +224,12 @@ const DashPaperdragon = (props) => {
       /* TO DO: add additional properties like navigator */
     });
 
-    viewer.addHandler('close',() => tiledImageRef.current = null);
-    viewer.world.addHandler('add-item',ev => tiledImageRef.current = ev.item);
+    viewer.addHandler('close', () => tiledImageRef.current = null);
+    viewer.world.addHandler('add-item', ev => tiledImageRef.current = ev.item);
 
     // suppress default OSD keydown handling for a subset of keys
-    viewer.addHandler('canvas-key',event=>{
-      if(['q', 'w', 'e', 'r', 'a', 's', 'd', 'f'].includes(event.originalEvent.key)){
+    viewer.addHandler('canvas-key', event => {
+      if (['q', 'w', 'e', 'r', 'a', 's', 'd', 'f'].includes(event.originalEvent.key)) {
         event.preventDefaultAction = true;
       }
     });
@@ -238,12 +238,12 @@ const DashPaperdragon = (props) => {
     setupPaper();
 
     // for easier debugging: attach objects to window
-    window.viewer = viewer; 
+    window.viewer = viewer;
   }
 
-  function setupPaper(){
-    const tk = new AnnotationToolkit(viewerRef.current, {overlay: null, addUI: false});
-    console.log('Toolkit:',tk);
+  function setupPaper() {
+    const tk = new AnnotationToolkit(viewerRef.current, { overlay: null, addUI: false });
+    console.log('Toolkit:', tk);
     toolkitRef.current = tk;
 
     const overlay = overlayRef.current = tk.overlay;
@@ -253,30 +253,30 @@ const DashPaperdragon = (props) => {
     paperRef.current = overlay.paperScope;
 
     paperRef.current.rectangleTool = new RectangleTool(overlay.paperScope);
-    
+
     // add key handlers to the paper view. TODO: this could be handled by mousetracker too I suppose 
-    const view = paperRef.current.view; 
-    view.onKeyUp = ev=>{
+    const view = paperRef.current.view;
+    view.onKeyUp = ev => {
       keyDownRef.current = false;
       let hitResult = paperRef.current.project.hitTest(paperMousePosRef.current);
       let item = hitResult && hitResult.item;
-      
-      executeBoundEvents({event: 'keyUp', key: ev.key, meta: ev.meta}, 
-                         {mousePosition: mousePosRef.current, item: item});
+
+      executeBoundEvents({ event: 'keyUp', key: ev.key, meta: ev.meta },
+        { mousePosition: mousePosRef.current, item: item });
     }
-    view.onKeyDown = ev=>{
-      if(keyDownRef.current){
+    view.onKeyDown = ev => {
+      if (keyDownRef.current) {
         return;
       }
       keyDownRef.current = ev.key;
       let hitResult = paperRef.current.project.hitTest(paperMousePosRef.current);
       let item = hitResult && hitResult.item;
-      
-      executeBoundEvents({event: 'keyDown', key: ev.key, meta: ev.meta}, 
-                         {mousePosition: mousePosRef.current, item: item});
+
+      executeBoundEvents({ event: 'keyDown', key: ev.key, meta: ev.meta },
+        { mousePosition: mousePosRef.current, item: item });
     }
 
-    view.onMouseMove = ev=>{
+    view.onMouseMove = ev => {
       paperMousePosRef.current = ev.point;
     }
 
@@ -284,7 +284,7 @@ const DashPaperdragon = (props) => {
 
 
   /* Set up the mouse handler functions */
-  function setupInfoHandler(viewer){
+  function setupInfoHandler(viewer) {
 
     // TO DO: Add or deal with resize handler 
     // let events = ['pan', 'zoom', 'rotate', 'resize'];
@@ -298,11 +298,11 @@ const DashPaperdragon = (props) => {
 
     function onViewportChange(event) {
       let tiledImage = viewer.world.getItemAt(0);
-      if(tiledImage){
+      if (tiledImage) {
         let rect = tiledImage.viewportToImageRectangle(viewer.viewport.getBounds())
         setProps({ viewportBounds: rect });
       }
-      
+
     }
     viewer.addHandler('viewport-change', onViewportChange);
     viewer.addHandler('open', onViewportChange);
@@ -310,16 +310,16 @@ const DashPaperdragon = (props) => {
 
     let moveHandler = function (event) {
       let tiledImage = viewer.world.getItemAt(0);
-      if(tiledImage){
+      if (tiledImage) {
         let imageCoords = tiledImage.viewerElementToImageCoordinates(event.position);
         mousePosRef.current = imageCoords;
-        setProps({ curMousePosition: imageCoords }); 
+        setProps({ curMousePosition: imageCoords });
       }
-      
+
     }
-    
+
     let leaveHandler = function () {
-      setProps({ curMousePosition: {x: null, y: null } }); 
+      setProps({ curMousePosition: { x: null, y: null } });
     }
 
     // create a mousetracker for the viewer, and hook up the handlers
@@ -328,37 +328,37 @@ const DashPaperdragon = (props) => {
   }
 
 
-  function badAction(a){
+  function badAction(a) {
     alert('Bad action, see console');
     console.warning('Bad action:', a);
   }
-  
-  
-  function makeItem(definition){
+
+
+  function makeItem(definition) {
     // TODO: make this fully configurable from the dash side via config
-    if(!definition.paperType){
+    if (!definition.paperType) {
       console.error('makeItem requires the object type in the paper field (e.g. paper: Path.Rectangle)');
       return;
     }
     let constructor = paperRef.current;
-    for(const part of definition.paperType.split('.')){
+    for (const part of definition.paperType.split('.')) {
       constructor = constructor[part];
-      if(!constructor){
+      if (!constructor) {
         console.error(`Bad paper constructor: paper.${definition.paper} does not exist`);
       }
     }
 
-    if(!Array.isArray(definition.args)){
+    if (!Array.isArray(definition.args)) {
       definition.args = [definition.args];
     }
-    if(!definition.userdata instanceof Object){
+    if (!definition.userdata instanceof Object) {
       definition.userdata = {
         userdata: definition.userdata
       };
     }
 
     let item = new constructor(...definition.args);
-    if(item.fillColor){
+    if (item.fillColor) {
       item.fillColor.alpha = item.fillOpacity;
     }
 
@@ -366,37 +366,37 @@ const DashPaperdragon = (props) => {
     Object.assign(item.data, definition);
 
     // add mouseEnter and mouseLeave handlers
-    item.onMouseEnter = event => { 
+    item.onMouseEnter = event => {
       console.log(`Item is ${event.target.data.fillColor}`);
       setProps({ "curShapeObject": event.target.data });
       hoveredItemRef.current = event.target.data;
-      executeBoundEvents({event: 'mouseEnter'}, {item: event.target.data});
+      executeBoundEvents({ event: 'mouseEnter' }, { item: event.target.data });
     }
     item.onMouseLeave = event => {
       setProps({ "curShapeObject": null });
       hoveredItemRef.current = null;
-      executeBoundEvents({event: 'mouseLeave'}, {item: event.target.data}); 
+      executeBoundEvents({ event: 'mouseLeave' }, { item: event.target.data });
     }
 
     return item;
   }
 
-  function executeCallbacks(eventName, data){
-    if(config.callbacks){
+  function executeCallbacks(eventName, data) {
+    if (config.callbacks) {
       let callbacks = config.callbacks.filter(a => a.eventName == eventName).map(a => a.callback);
-      for(const cb of callbacks){
-        dashCallback({callback: cb}, data);
+      for (const cb of callbacks) {
+        dashCallback({ callback: cb }, data);
       }
     }
   }
 
-  function executeBoundEvents(filters, opts){
-    if(config.eventBindings){
+  function executeBoundEvents(filters, opts) {
+    if (config.eventBindings) {
       let enterActions = config.eventBindings.filter(a => match(a, filters));
-      for(const a of enterActions){
+      for (const a of enterActions) {
         const func = actionsRef.current[a.action];
-        if(func){
-          func(opts, a); 
+        if (func) {
+          func(opts, a);
         } else {
           badAction(a);
         }
@@ -404,9 +404,9 @@ const DashPaperdragon = (props) => {
     }
   }
 
-  function match(obj, filters){
-    for(const [key, value] of Object.entries(obj)){
-      if(key in filters && filters[key] !== value){
+  function match(obj, filters) {
+    for (const [key, value] of Object.entries(obj)) {
+      if (key in filters && filters[key] !== value) {
         return false
       }
     }
@@ -460,7 +460,7 @@ DashPaperdragon.propTypes = {
    * data sent from dash to paper
    */
   inputToPaper: PropTypes.object,
-  
+
   /**
    * Dash-assigned callback that should be called to report property changes
    * to Dash, to make them available for callbacks.
