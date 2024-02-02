@@ -11,8 +11,9 @@
 
 \usage{
 dashPaperdragon(id=NULL, config=NULL, curMousePosition=NULL,
-inputToPaper=NULL, outputFromPaper=NULL, tileSources=NULL,
-viewportBounds=NULL, zoomLevel=NULL)
+inputToPaper=NULL, outputFromPaper=NULL,
+tileSourceProps=NULL, tileSources=NULL, viewportBounds=NULL,
+zoomLevel=NULL)
 }
 
 \arguments{
@@ -25,6 +26,8 @@ viewportBounds=NULL, zoomLevel=NULL)
 \item{inputToPaper}{Named list. data sent from dash to paper}
 
 \item{outputFromPaper}{Named list. data sent from paper back to dash}
+
+\item{tileSourceProps}{Unnamed list. sent from dash to update x offset, y offset, rotation, or opacity of the image}
 
 \item{tileSources}{Character | unnamed list. the tile source for openseadragon}
 

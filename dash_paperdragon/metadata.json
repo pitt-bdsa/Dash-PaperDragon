@@ -68,6 +68,13 @@
         "required": false,
         "description": "data sent from dash to paper"
       },
+      "tileSourceProps": {
+        "type": {
+          "name": "array"
+        },
+        "required": false,
+        "description": "sent from dash to update x offset, y offset, rotation, or opacity of the image"
+      },
       "setProps": {
         "type": {
           "name": "func"

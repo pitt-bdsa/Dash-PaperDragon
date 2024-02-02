@@ -1,5 +1,17 @@
 import dash_paperdragon
-from dash import Dash, callback, html, Input, Output, dcc, State
+from dash import (
+    Dash,
+    callback,
+    html,
+    Input,
+    Output,
+    dcc,
+    State,
+    ALL,
+    MATCH,
+    callback_context,
+    no_update,
+)
 import dash_bootstrap_components as dbc
 import json, random
 
@@ -42,12 +54,19 @@ tileSources = [
     {
         "label": "TCGA-2J-AAB4",
         "value": 0,
-        "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
+        "tileSources": [
+            {
+                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
+                "width": 79680,
+            }
+        ],
     },
     {
         "label": "TCGA-2J-AAB4-01Z-00-DX1",
         "value": 1,
-        "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
+        "tileSources": [
+            "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi"
+        ],
     },
     {
         "label": "Image stack",
@@ -58,12 +77,16 @@ tileSources = [
                 "x": 0,
                 "y": 0,
                 "opacity": 1,
+                "layerIdx": 0,
+                "width": 1000,
             },
             {
                 "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
                 "x": 0.2,
                 "y": 0.2,
                 "opacity": 0.2,
+                "layerIdx": 1,
+                "width": 1000,
             },
         ],
     },
@@ -151,7 +174,7 @@ osdElement = dash_paperdragon.DashPaperdragon(
 ## Make HTML layout
 coordinate_display = dbc.Container(
     [
-        dbc.Row([dbc.Col(html.H1("Zoom and Mouse Position"), className="mb-4")]),
+        dbc.Row([dbc.Col(html.H2("Zoom and Mouse Position"), className="mb-4")]),
         dbc.Row(
             [
                 dbc.Col(
@@ -166,7 +189,7 @@ coordinate_display = dbc.Container(
                                 ]
                             )
                         ],
-                        className="mb-3",
+                        className="mb-1",
                     ),
                     width=4,
                 ),
@@ -182,7 +205,7 @@ coordinate_display = dbc.Container(
                                 ]
                             )
                         ],
-                        className="mb-6",
+                        className="mb-1",
                     ),
                     width=8,
                 ),
@@ -191,14 +214,14 @@ coordinate_display = dbc.Container(
                         [
                             dbc.CardBody(
                                 [
-                                    html.H5(
+                                    html.H6(
                                         "Current Mouse Position", className="card-title"
                                     ),
                                     html.Div(id="mousePos_disp", className="card-text"),
                                 ]
                             )
                         ],
-                        className="mb-6",
+                        className="img-control-grid",
                     )
                 ),
                 dbc.Col(
@@ -206,7 +229,7 @@ coordinate_display = dbc.Container(
                         [
                             dbc.CardBody(
                                 [
-                                    html.H5(
+                                    html.H6(
                                         "Highlighted Object", className="card-title"
                                     ),
                                     html.Div(
@@ -215,17 +238,45 @@ coordinate_display = dbc.Container(
                                 ]
                             )
                         ],
-                        className="mb-6",
+                        className="mb-1",
                     )
                 ),
-                dbc.Col(
-                    dbc.Button(
-                        "Make Random Rects", id="make_random_button", className="mb-4"
-                    )
-                ),
+                dbc.Col(),
             ]
         ),
-        dbc.Row(id="osdTileProperties", children=[]),
+        dbc.Row(
+            dbc.Card(
+                [
+                    dbc.CardBody(
+                        [
+                            html.H5("Tile Source Properties", className="card-title"),
+                            html.Div(id="osdTileProperties", className="card-text"),
+                            html.Div(id="imgScrControls_data", className="card-text"),
+                        ]
+                    )
+                ]
+            )
+        ),
+    ],
+)
+
+
+imageSelect_dropdown = html.Div(
+    [
+        html.Label("Select an image", className="text-center"),
+        dbc.Select(
+            id="imageSelect",
+            options=[x["label"] for x in tileSources],
+            value=tileSources[0]["label"],
+            className="mb-4 d-inline",
+            style={"width": "400px", "marginLleft": "10px", "marginTop": "1px"},
+        ),
+        dbc.Button(
+            "Make Random Rects",
+            id="make_random_button",
+            className="mb-4 d-inline",
+            style={"marginLeft": "10px", "marginTop": "15px"},
+        ),
     ],
 )
 
@@ -234,16 +285,17 @@ app.layout = dbc.Container(
     [
         dbc.Row(dbc.Col(html.H1("Dash Paperdragon", className="text-center"))),
         dbc.Row(
-            dbc.Select(
-                id="imageSelect",
-                options=[x["label"] for x in tileSources],
-                value=tileSources[0]["label"],
-                className="mb-4",
-            ),
-            style={"width": "400px"},
+            [
+                dbc.Col([imageSelect_dropdown, osdElement], width=8),
+                dbc.Col(
+                    coordinate_display,
+                    width=4,
+                    style={"margin": "0px", "padding": "0px"},
+                ),
+            ]
         ),
-        dbc.Row([dbc.Col(osdElement, width=8), dbc.Col(coordinate_display, width=4)]),
-    ]
+    ],
+    style={"margin": "10px", "padding": "0px"},
 )
 ## End of layout
 
@@ -352,123 +404,254 @@ def update_viewportBounds(viewPortBounds):
     return f'x: {int(vp["x"])} y: {int(vp["y"])} w: {int(vp["width"])} h: {int(vp["height"])}'
 
 
-# @callback(Output("osdTileProperties", "children"), Input("imageSelect", "value"))
-# def createTileSourceControls(tileSourceIdx):
-#     newTileSources = tileSourceDict.get(tileSourceIdx, None)
-#     print("tileSources", newTileSources)
-#     if isinstance(newTileSources, list):
-#         return html.Div(
-#             [
-#                 html.H5("Tile Source Properties"),
-#                 html.Div(
-#                     [
-#                         html.Div(
-#                             [
-#                                 html.H5(f"Tile {idx}"),
-#                                 html.Div(
-#                                     [
-#                                         html.Div(
-#                                             [
-#                                                 html.Label("Tile Source"),
-#                                                 dcc.Input(
-#                                                     id={
-#                                                         "type": "tileSource",
-#                                                         "index": idx,
-#                                                     },
-#                                                     type="text",
-#                                                     value=item["tileSource"],
-#                                                 ),
-#                                             ]
-#                                         ),
-#                                         html.Div(
-#                                             [
-#                                                 html.Label("X"),
-#                                                 dcc.Input(
-#                                                     id={"type": "x", "index": idx},
-#                                                     type="number",
-#                                                     value=item["x"],
-#                                                 ),
-#                                             ]
-#                                         ),
-#                                         html.Div(
-#                                             [
-#                                                 html.Label("Y"),
-#                                                 dcc.Input(
-#                                                     id={"type": "y", "index": idx},
-#                                                     type="number",
-#                                                     value=item["y"],
-#                                                 ),
-#                                             ]
-#                                         ),
-#                                         html.Div(
-#                                             [
-#                                                 html.Label("Opacity"),
-#                                                 dcc.Slider(
-#                                                     id={"type": "slider", "index": idx},
-#                                                     min=0,
-#                                                     max=1,
-#                                                     step=0.1,
-#                                                     value=item["opacity"],
-#                                                 ),
-#                                             ]
-#                                         ),
-#                                     ]
-#                                 ),
-#                             ]
-#                         )
-#                         for idx, item in enumerate(newTileSources)
-#                     ]
-#                 ),
-#             ]
-#         )
+def generateImgSrcControlPanel(tileSource, idx):
+    if isinstance(tileSource, str):
+        tileSource = {"tileSource": tileSource, "x": 0, "y": 0, "opacity": 1}
+
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [
+                                            html.Div(
+                                                f"Layer {idx} ",
+                                                className="small",
+                                            ),
+                                        ],
+                                        className="mr-4 align-items-center",
+                                        style={"paddingTop": "10px"},
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Label("X Offset"),
+                                            dcc.Input(
+                                                id={"type": "x", "index": idx},
+                                                type="number",
+                                                value=tileSource.get("x", 0),
+                                                style={"width": "70px"},
+                                            ),
+                                        ],
+                                        className="mr-3",
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Label("Y Offset"),
+                                            dcc.Input(
+                                                id={"type": "y", "index": idx},
+                                                type="number",
+                                                value=tileSource.get("y", 0),
+                                                style={"width": "70px"},
+                                            ),
+                                        ],
+                                        className="mr-3",
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Label("Opacity"),
+                                            dcc.Slider(
+                                                id={"type": "opacity", "index": idx},
+                                                # type="range",
+                                                min=0,
+                                                max=1,
+                                                step=0.05,
+                                                marks={
+                                                    0: "0",
+                                                    0.5: "0.5",
+                                                    1: "1",
+                                                },
+                                                value=tileSource.get("opacity", 1),
+                                                className="slider",
+                                            ),
+                                        ],
+                                        className="mr-3",
+                                        style={"textAlign": "center"},
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Label("Rotation"),
+                                            dcc.Input(
+                                                id={"type": "rotation", "index": idx},
+                                                type="number",
+                                                value=tileSource.get("rotation", 0),
+                                                style={"width": "70px"},
+                                            ),
+                                        ],
+                                        className="mr-3",
+                                    ),
+                                ],
+                                className="d-flex",
+                            ),
+                        ],
+                        className="mr-3",
+                    ),
+                ],
+                className="d-flex",
+            ),
+        ],
+        className="mb-4",
+    )
 
 
-# else:
-#     return html.Div(
-#         [
-#             html.H5("Tile Source Properties"),
-#             html.Div(
-#                 [
-#                     html.Div(
-#                         [
-#                             html.Label("Tile Source"),
-#                             dcc.Input(
-#                                 id={"type": "tileSource", "index": 0},
-#                                 type="text",
-#                                 value=tileSources,
-#                             ),
-#                         ]
-#                     )
-#                 ]
-#             ),
-#         ]
+@callback(Output("osdTileProperties", "children"), Input("imageSelect", "value"))
+def createTileSourceControls(tileSourceIdx):
+    newTileSources = tileSourceDict.get(tileSourceIdx, None)
+    imgSrcControls = []
+
+    # Handle cases of both single channel and multi-channel images
+    if isinstance(newTileSources, list):
+        for idx, tileSource in enumerate(newTileSources):
+            imgSrcControls.append(generateImgSrcControlPanel(tileSource, idx))
+    else:
+        imgSrcControls.append(generateImgSrcControlPanel(newTileSources, 0))
+
+    return imgSrcControls
+
+
+# ### Detect changes in xOffset, yOffset, and opacity
+@callback(
+    Output("imgScrControls_data", "children"),
+    Output("osdViewerComponent", "tileSourceProps"),
+    Input({"type": "x", "index": ALL}, "value"),
+    Input({"type": "y", "index": ALL}, "value"),
+    Input({"type": "opacity", "index": ALL}, "value"),
+    Input({"type": "rotation", "index": ALL}, "value"),
+)
+def process_tileSource_changes(x, y, opacity, rotation):
+    ctx = callback_context
+    if not ctx.triggered:
+        return no_update
+
+    # Given complex array
+    complex_array = [
+        [
+            {"id": {"index": 0, "type": "x"}, "property": "value", "value": 0},
+            {"id": {"index": 1, "type": "x"}, "property": "value", "value": 0.2},
+        ],
+        [
+            {"id": {"index": 0, "type": "y"}, "property": "value", "value": 0},
+            {"id": {"index": 1, "type": "y"}, "property": "value", "value": 0.2},
+        ],
+        [
+            {"id": {"index": 0, "type": "opacity"}, "property": "value", "value": 1},
+            {"id": {"index": 1, "type": "opacity"}, "property": "value", "value": 0.2},
+        ],
+        [
+            {"id": {"index": 0, "type": "rotation"}, "property": "value", "value": 0},
+            {"id": {"index": 1, "type": "rotation"}, "property": "value", "value": 0},
+        ],
+    ]
+
+    from pprint import pprint
+
+    # Transform the complex array to the specified format
+    transformed_array = []
+    indexes = set()
+
+    complex_array = ctx.inputs_list
+
+    # First, gather all unique indexes to create a template for the dictionaries
+    for group in complex_array:
+        for item in group:
+            indexes.add(item["id"]["index"])
+
+    # Initialize dictionaries for each index
+    for index in indexes:
+        transformed_array.append({"index": index})
+
+    # Populate the dictionaries with values from the complex array
+    for group in complex_array:
+        for item in group:
+            index = item["id"]["index"]
+            type_ = item["id"]["type"]
+            value = item["value"]
+            # Find the dictionary with the matching index and update it with the new value
+            for dict_ in transformed_array:
+                if dict_["index"] == index:
+                    dict_[type_] = value
+
+    print(transformed_array)
+
+    # print(ctx.triggered)
+    # print(ctx.inputs_list)
+
+    # pprint(ctx.inputs_list)
+
+    # for input_id, value in ctx.inputs_list[0]:
+    #     print(input_id, value)
+    # return html.Div("YO"), [{"x": 0.2, "y":0.2, "opacity": 1},{"x": 0.8, "y":0.1, "opacity": 1} ]
+    return json.dumps(transformed_array), transformed_array
+
+    # input_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    # idx = input_id["index"]
+    # print(ctx.triggered)
+
+
+#     # newTileSources = tileSourceDict.get(tileSourceIdx, None)
+#     # if isinstance(newTileSources, list)
+#     #     newTileSources[idx]["x"] = x
+#     #     newTileSources[idx]["y"] = y
+#     #     newTileSources[idx]["opacity"] = opacity
+#     #     newTileSources[idx]["rotation"] = rotation
+#     # else:
+#     #     newTileSources["x"] = x
+#     #     newTileSources["y"] = y
+#     #     newTileSources["opacity"] = opacity
+#     #     newTileSources["rotation"] = rotation
+#     print(input_id, idx, x, y, opacity, rotation)
+# return newTileSources
+
+# @callback(
+#     Output({"type": "card-content", "index": MATCH}, "children"),
+#     Input({"type": "loading-card", "index": MATCH}, "children"),
+#     State("filteredItem_store", "data"),
+#     State("size-selector", "value"),
+# )
+# def update_card(index, subset, selected_size, cardType="annotation"):
+#     # Logic to update the individual card's content
+#     # This could call a function to generate the card's content
+#     # based on the index and any other relevant data
+#     ### Add error checking here
+#     item = subset["data"][index["props"]["id"]["index"]]
+
+#     column_width = 12 // images_per_row[selected_size]
+#     return generate_annotation_card_layout(
+#         item, f"card-{index}", column_width, selected_size
 #     )
 
-
-# # Create a list of slider components based on the array of dictionaries
-# slider_components = [
-#     dcc.Slider(
-#         id={'type': 'slider', 'index': i},
-#         min=0,
-#         max=1,
-#         step=0.1,
-#         value=item['opacity']
-#     )
-#     for i, item in enumerate(data)
-# ]
+# [[{'id': {'index': 0, 'type': 'x'}, 'property': 'value', 'value': 0},
+#   {'id': {'index': 1, 'type': 'x'}, 'property': 'value', 'value': 0.2}],
+#  [{'id': {'index': 0, 'type': 'y'}, 'property': 'value', 'value': 0},
+#   {'id': {'index': 1, 'type': 'y'}, 'property': 'value', 'value': 0.2}],
+#  [{'id': {'index': 0, 'type': 'opacity'}, 'property': 'value', 'value': 1},
+#   {'id': {'index': 1, 'type': 'opacity'}, 'property': 'value', 'value': 0.2}],
+#  [{'id': {'index': 0, 'type': 'rotation'}, 'property': 'value', 'value': 0},
+#   {'id': {'index': 1, 'type': 'rotation'}, 'property': 'value', 'value': 0}]]
 
 
-# @callback(Output('curObject_disp', 'children'), Input('osdViewerComponent', 'curShapeObject'))
+# @callback(
+#     Output("curObject_disp", "children"), Input("osdViewerComponent", "curShapeObject")
+# )
 # def update_curShapeObject(curShapeObject):
-#     return f'Current Selected Shape: {json.dumps(curShapeObject)}'
+#     return f"Current Selected Shape: {json.dumps(curShapeObject)}"
+
+# Create a callback to update the opacity property when the slider value changes
+# @app.callback(
+#     [Output({'type': 'slider', 'index': i}, 'value') for i in range(len(data))],
+#     [Input({'type': 'slider', 'index': i}, 'value') for i in range(len(data))]
+# )
+# def update_opacity(*slider_values):
+#     print(slider_values)
+#     return slider_values
 
 
 @callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
 def update_imageSrc(tileSourceIdx):
-    print(tileSourceIdx, "is the idx I received..")
     newTileSource = tileSourceDict[tileSourceIdx]
-    print(type(newTileSource))
-    print(newTileSource, "is the new tile source")
     return newTileSource
 
 

@@ -13,6 +13,7 @@ const DashPaperdragon = (props) => {
     viewportBounds, // output property, sent by the component back to dash
     outputFromPaper, // output property, seny by the component back to dash
     inputToPaper, // input property, telling the component how to update the paper overlay
+    tileSourceProps, // input property, updates tileLayers  x offset, y, rotation or opacity
     setProps,
   } = props;
 
@@ -58,6 +59,29 @@ const DashPaperdragon = (props) => {
       }
     };
   }, []);
+
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    // console.log(tileSourceProps, "are being updated")
+
+    if (tileSourceProps) {
+      for (let i = 0; i < tileSourceProps.length; i++) {
+        let curTileSource = viewer.world.getItemAt(i);
+        // for (let prop in tileSourceProps[i]) {
+        if (curTileSource) {
+          // console.log(tileSourceProps[i].opacity);
+          //Updating opacity, position and rotation...
+          //Future state could only update properties that have changed, but these operations seem
+          //fast enough that it may not be necessary
+          curTileSource.setOpacity(tileSourceProps[i].opacity);
+          curTileSource.setPosition({ x: tileSourceProps[i].x, y: tileSourceProps[i].y })
+          curTileSource.setRotation(tileSourceProps[i].rotation);
+        }
+      }
+      //Iterate through the tilesources and change the opacity
+    }
+  }, [tileSourceProps]);
 
 
   /** add reactive components via useEffect, listening to property changes */
@@ -460,6 +484,11 @@ DashPaperdragon.propTypes = {
    * data sent from dash to paper
    */
   inputToPaper: PropTypes.object,
+  /**
+   * sent from dash to update x offset, y offset, rotation, or opacity of the image
+   */
+
+  tileSourceProps: PropTypes.array,
 
   /**
    * Dash-assigned callback that should be called to report property changes
@@ -485,11 +514,11 @@ export default DashPaperdragon;
             * app server if a callback uses the modified prop as
             * Input or State.
             */
-  // e => setProps({ value: e.target.value })
-  // / Assuming your array is called 'data' and the column with the unique value is 'columnName'
-  // const rowIndex = data.findIndex(row => row.columnName === uniqueValue);
+// e => setProps({ value: e.target.value })
+// / Assuming your array is called 'data' and the column with the unique value is 'columnName'
+// const rowIndex = data.findIndex(row => row.columnName === uniqueValue);
 
-  // if (rowIndex !== -1) {
-  //   // Update the row at the found index with the desired changes
-  //   data[rowIndex].columnName = newValue;
-  // }
+// if (rowIndex !== -1) {
+//   // Update the row at the found index with the desired changes
+//   data[rowIndex].columnName = newValue;
+// }

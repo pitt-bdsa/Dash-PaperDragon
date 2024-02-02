@@ -25,6 +25,10 @@ Keyword arguments:
 - outputFromPaper (dict; optional):
     data sent from paper back to dash.
 
+- tileSourceProps (list; optional):
+    sent from dash to update x offset, y offset, rotation, or opacity
+    of the image.
+
 - tileSources (string | list; optional):
     the tile source for openseadragon.
 
@@ -38,10 +42,10 @@ Keyword arguments:
     _namespace = 'dash_paperdragon'
     _type = 'DashPaperdragon'
     @_explicitize_args
-    def __init__(self, id=Component.UNDEFINED, config=Component.UNDEFINED, tileSources=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, curMousePosition=Component.UNDEFINED, viewportBounds=Component.UNDEFINED, outputFromPaper=Component.UNDEFINED, inputToPaper=Component.UNDEFINED, **kwargs):
-        self._prop_names = ['id', 'config', 'curMousePosition', 'inputToPaper', 'outputFromPaper', 'tileSources', 'viewportBounds', 'zoomLevel']
+    def __init__(self, id=Component.UNDEFINED, config=Component.UNDEFINED, tileSources=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, curMousePosition=Component.UNDEFINED, viewportBounds=Component.UNDEFINED, outputFromPaper=Component.UNDEFINED, inputToPaper=Component.UNDEFINED, tileSourceProps=Component.UNDEFINED, **kwargs):
+        self._prop_names = ['id', 'config', 'curMousePosition', 'inputToPaper', 'outputFromPaper', 'tileSourceProps', 'tileSources', 'viewportBounds', 'zoomLevel']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'config', 'curMousePosition', 'inputToPaper', 'outputFromPaper', 'tileSources', 'viewportBounds', 'zoomLevel']
+        self.available_properties = ['id', 'config', 'curMousePosition', 'inputToPaper', 'outputFromPaper', 'tileSourceProps', 'tileSources', 'viewportBounds', 'zoomLevel']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()
