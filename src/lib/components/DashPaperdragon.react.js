@@ -14,6 +14,7 @@ const DashPaperdragon = (props) => {
     outputFromPaper, // output property, seny by the component back to dash
     inputToPaper, // input property, telling the component how to update the paper overlay
     tileSourceProps, // input property, updates tileLayers  x offset, y, rotation or opacity
+    baseImageWidth, // output property, sent by the component back to dash for tiledImage[0] width
     setProps,
   } = props;
 
@@ -489,6 +490,8 @@ DashPaperdragon.propTypes = {
    */
 
   tileSourceProps: PropTypes.array,
+  /* This is the width of the base image, which is the first image in the tileSources array */
+  baseImageWidth: PropTypes.number,
 
   /**
    * Dash-assigned callback that should be called to report property changes

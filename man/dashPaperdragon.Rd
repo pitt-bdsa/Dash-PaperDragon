@@ -10,14 +10,16 @@
 }
 
 \usage{
-dashPaperdragon(id=NULL, config=NULL, curMousePosition=NULL,
-inputToPaper=NULL, outputFromPaper=NULL,
-tileSourceProps=NULL, tileSources=NULL, viewportBounds=NULL,
-zoomLevel=NULL)
+dashPaperdragon(id=NULL, baseImageWidth=NULL, config=NULL,
+curMousePosition=NULL, inputToPaper=NULL,
+outputFromPaper=NULL, tileSourceProps=NULL,
+tileSources=NULL, viewportBounds=NULL, zoomLevel=NULL)
 }
 
 \arguments{
 \item{id}{Character. The ID used to identify this component in Dash callbacks.}
+
+\item{baseImageWidth}{Numeric. }
 
 \item{config}{Named list. config is a dictionary of options for setting up the component and initial rendering}
 

@@ -75,6 +75,13 @@
         "required": false,
         "description": "sent from dash to update x offset, y offset, rotation, or opacity of the image"
       },
+      "baseImageWidth": {
+        "type": {
+          "name": "number"
+        },
+        "required": false,
+        "description": ""
+      },
       "setProps": {
         "type": {
           "name": "func"

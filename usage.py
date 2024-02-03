@@ -157,9 +157,11 @@ callbacks = {
 
 def convertPaperInstructions_toTableForm(data):
 
-    args = data["args"][0]
+    # args = data["args"][0]
     # Flatten the data
-    args = data["args"][0]
+    args = data.get("args", [])
+    if args:
+        args = args[0]
 
     # Flatten the data
     flattened_data = {
@@ -341,7 +343,7 @@ imageSelect_dropdown = html.Div(
 
 app.layout = dbc.Container(
     [
-        dcc.Store(id="osdShapeData_store", data={}),
+        dcc.Store(id="osdShapeData_store", data=[]),
         dbc.Row(dbc.Col(html.H1("Dash Paperdragon", className="text-center"))),
         dbc.Row(
             [
@@ -358,15 +360,51 @@ app.layout = dbc.Container(
 ## End of layout
 
 
+## Refactoring outputs and inputsto paper..
+
+# if n_clicks:
+#     inputToPaper = {"actions": [{"type": "clearItems"}]}
+
+# return inputToPaper, outputFromPaper
+
+
+# @callback(
+#     Output("osdShapeData_store", "data"),
+#     Input("make_random_button", "n_clicks"),
+#     State("osdViewerComponent", "viewportBounds"),
+#     prevent_initial_call=True,
+# )
+# def make_random_boxes(n_clicks, bounds):
+#     out = {
+#         "actions": [
+#             {"type": "clearItems"},
+#             {"type": "drawItems", "itemList": generate_random_boxes(3, bounds)},
+#         ]
+#     }
+#     return out
+
+
 @callback(
     Output("osdViewerComponent", "inputToPaper", allow_duplicate=True),
-    Output("osdViewerComponent", "outputFromPaper"),
+    Output("osdShapeData_store", "data"),
     Input("osdViewerComponent", "outputFromPaper"),
+    Input("make_random_button", "n_clicks"),
+    State("osdViewerComponent", "viewportBounds"),
+    State("osdShapeData_store", "data"),
     prevent_initial_call=True,
 )
-def handleOutputFromPaper(paperOutput):
-    inputToPaper = None
-    outputFromPaper = None
+def handleOutputFromPaper(
+    paperOutput, make_random_boxesClicked, viewPortBounds, currentShapeData
+):
+    inputToPaper = {}  ## this will be an array of commands to send to paper if needed
+    inputToShapreDataStore = None
+
+    ### Need to also determine if the app is being called from the dash or javascript side
+    ctx = callback_context
+    if not ctx.triggered:
+        return no_update
+
+    ctxProperty = ctx.triggered[0]["prop_id"].split(".")[0]
 
     if paperOutput is None:
         paperOutput = {}
@@ -375,9 +413,35 @@ def handleOutputFromPaper(paperOutput):
 
     if callback:
         inputToPaper = callback(paperOutput.get("data"))
+        ### Not sure if I need to append this..
+        ## If action type is drawItems than I need to append to the currentShapeData
+        if inputToPaper.get("actions")[0].get("type") == "drawItems":
+            currentShapeData.append(inputToPaper["actions"][0])
+            print("CSD-->", currentShapeData)
+            return inputToPaper, currentShapeData
+            # inputToShapreDataStore = currentShapeData
 
-    print("OFP:", outputFromPaper, "ITP", inputToPaper, "PO:", paperOutput)
-    return inputToPaper, outputFromPaper
+        # currentShapeData.append()
+
+    if make_random_boxesClicked and not paperOutput.get("callback"):
+        # bounds = paperOutput.get("viewportBounds")
+        shapesToAdd = generate_random_boxes(3, viewPortBounds)
+
+        shapesToAdd = generate_paperjs_polygon("tbd")
+        # print(shapesToAdd)
+        inputToPaper = {
+            "actions": [
+                {"type": "clearItems"},
+                {"type": "drawItems", "itemList": shapesToAdd},
+            ]
+        }
+        print(shapesToAdd)
+        return inputToPaper, shapesToAdd
+
+    ### Need to interrogate the inputToPaper object and see if I need to update the data store
+
+    # print("ITP", inputToPaper, "PO:", paperOutput)
+    return inputToPaper, no_update
 
 
 def get_box_instructions(x, y, w, h, color, userdata={}):
@@ -391,6 +455,32 @@ def get_box_instructions(x, y, w, h, color, userdata={}):
     command = {"paperType": "Path.Rectangle", "args": [props], "userdata": userdata}
 
     return command
+
+
+def generate_paperjs_polygon(shapeInfo):
+    jsPolygon = [
+        {
+            "paperType": "Path",
+            "args": [
+                {
+                    "fillColor": "red",
+                    "strokeColor": "red",
+                    "rescale": {"strokeWidth": 1},
+                    "fillOpacity": 0.2,
+                    "segments": [
+                        {"x": 7849, "y": 19637},
+                        {"x": 8823, "y": 20637},
+                        {"x": 7849, "y": 21637},
+                    ],
+                    "closed": True,
+                }
+            ],
+            "userdata": {"class": "a", "objectId": 40},
+        },
+        # Other shapes...
+    ]
+
+    return jsPolygon
 
 
 def generate_random_boxes(num_points, bounds):
@@ -417,31 +507,15 @@ def generate_random_boxes(num_points, bounds):
     return out
 
 
-@callback(
-    Output("osdShapeData_store", "data"),
-    Input("make_random_button", "n_clicks"),
-    State("osdViewerComponent", "viewportBounds"),
-    prevent_initial_call=True,
-)
-def make_random_boxes(n_clicks, bounds):
-    out = {
-        "actions": [
-            {"type": "clearItems"},
-            {"type": "drawItems", "itemList": generate_random_boxes(3, bounds)},
-        ]
-    }
-    return out
-
-
 ## This call back will get fairly complicated as it not only handled objects created in python
 ## but also objects created in the paperjs side
-@callback(
-    Output("osdViewerComponent", "inputToPaper"), Input("osdShapeData_store", "data")
-)
-def update_osdShapeData_store(data):
-    ## This may not always update openseadragon depending on what changes occurred
+# @callback(
+#     Output("osdViewerComponent", "inputToPaper"), Input("osdShapeData_store", "data")
+# )
+# def update_osdShapeData_store(data):
+#     ## This may not always update openseadragon depending on what changes occurred
 
-    return data
+#     return data
 
 
 ## This updates the mouse tracker
@@ -579,12 +653,8 @@ def updateShapeDataTable(shapeData):
         return []
 
     flattened_data = []
-    for action in shapeData.get("actions", []):
-
-        if action["type"] == "drawItems":
-            for shp in action["itemList"]:
-                flattened_data.append(convertPaperInstructions_toTableForm(shp))
-                # pprint(shp)
+    for shp in shapeData:
+        flattened_data.append(convertPaperInstructions_toTableForm(shp))
     return flattened_data
 
 
@@ -643,47 +713,7 @@ def process_tileSource_changes(x, y, opacity, rotation):
                 if dict_["index"] == index:
                     dict_[type_] = value
 
-    # for input_id, value in ctx.inputs_list[0]:
-    #     print(input_id, value)
-    # return html.Div("YO"), [{"x": 0.2, "y":0.2, "opacity": 1},{"x": 0.8, "y":0.1, "opacity": 1} ]
     return json.dumps(transformed_array), transformed_array
-
-    # input_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    # idx = input_id["index"]
-    # print(ctx.triggered)
-
-
-#     # newTileSources = tileSourceDict.get(tileSourceIdx, None)
-#     # if isinstance(newTileSources, list)
-#     #     newTileSources[idx]["x"] = x
-#     #     newTileSources[idx]["y"] = y
-#     #     newTileSources[idx]["opacity"] = opacity
-#     #     newTileSources[idx]["rotation"] = rotation
-#     # else:
-#     #     newTileSources["x"] = x
-#     #     newTileSources["y"] = y
-#     #     newTileSources["opacity"] = opacity
-#     #     newTileSources["rotation"] = rotation
-#     print(input_id, idx, x, y, opacity, rotation)
-# return newTileSources
-
-# @callback(
-#     Output({"type": "card-content", "index": MATCH}, "children"),
-#     Input({"type": "loading-card", "index": MATCH}, "children"),
-#     State("filteredItem_store", "data"),
-#     State("size-selector", "value"),
-# )
-# def update_card(index, subset, selected_size, cardType="annotation"):
-#     # Logic to update the individual card's content
-#     # This could call a function to generate the card's content
-#     # based on the index and any other relevant data
-#     ### Add error checking here
-#     item = subset["data"][index["props"]["id"]["index"]]
-
-#     column_width = 12 // images_per_row[selected_size]
-#     return generate_annotation_card_layout(
-#         item, f"card-{index}", column_width, selected_size
-#     )
 
 
 # @callback(
