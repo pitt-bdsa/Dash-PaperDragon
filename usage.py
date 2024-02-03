@@ -11,9 +11,13 @@ from dash import (
     MATCH,
     callback_context,
     no_update,
+    dash_table,
 )
 import dash_bootstrap_components as dbc
 import json, random
+import dash_ag_grid
+from pprint import pprint
+
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -48,18 +52,11 @@ def getId():
 # createItem
 
 
-## Note this annoying hack, the dbc.Select component does not support a list of dictionaries as options
-
 tileSources = [
     {
         "label": "TCGA-2J-AAB4",
         "value": 0,
-        "tileSources": [
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
-                "width": 79680,
-            }
-        ],
+        "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
     },
     {
         "label": "TCGA-2J-AAB4-01Z-00-DX1",
@@ -78,7 +75,6 @@ tileSources = [
                 "y": 0,
                 "opacity": 1,
                 "layerIdx": 0,
-                "width": 1000,
             },
             {
                 "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
@@ -86,7 +82,6 @@ tileSources = [
                 "y": 0.2,
                 "opacity": 0.2,
                 "layerIdx": 1,
-                "width": 1000,
             },
         ],
     },
@@ -159,10 +154,48 @@ callbacks = {
     "propertyChanged": cbPropertyChanged,
 }
 
+
+def convertPaperInstructions_toTableForm(data):
+
+    args = data["args"][0]
+    # Flatten the data
+    args = data["args"][0]
+
+    # Flatten the data
+    flattened_data = {
+        "objectId": data["userdata"]["objectId"],
+        "fillOpacity": args["fillOpacity"],
+        "fillColor": args["fillColor"],
+        "class": data["userdata"]["class"],
+        "strokeColor": args["strokeColor"],
+        "rotation": args.get(
+            "rotation"
+        ),  # Use .get() to avoid KeyError if 'rotation' is not present
+        "x": args["point"]["x"],
+        "y": args["point"]["y"],
+        "width": args["size"]["width"],
+        "height": args["size"]["height"],
+    }
+    return flattened_data
+
+
+paperJsShapeColumns = [
+    {"field": "objectId", "width": 100, "sortable": True},
+    {"field": "fillOpacity", "headerName": "fill %", "width": 100},
+    {"field": "fillColor"},
+    {"field": "class"},
+    {"field": "strokeColor"},
+    {"field": "rotation"},
+    {"field": "x"},
+    {"field": "y"},
+    {"field": "width"},
+    {"field": "height"},
+]
+
 ## Create element
 osdElement = dash_paperdragon.DashPaperdragon(
     id="osdViewerComponent",
-    # tileSources = tileSources[0],
+    # tileSources = tileSources[0],  //Can set a default tilesource here if you want
     config=config,
     zoomLevel=0,
     viewportBounds={"x": 0, "y": 0, "width": 0, "height": 0},
@@ -172,9 +205,9 @@ osdElement = dash_paperdragon.DashPaperdragon(
 )
 
 ## Make HTML layout
-coordinate_display = dbc.Container(
+coordinate_display = html.Div(
     [
-        dbc.Row([dbc.Col(html.H2("Zoom and Mouse Position"), className="mb-4")]),
+        dbc.Row([dbc.Col(html.H2("Zoom and Mouse Position"), className="mb-2")]),
         dbc.Row(
             [
                 dbc.Col(
@@ -214,15 +247,14 @@ coordinate_display = dbc.Container(
                         [
                             dbc.CardBody(
                                 [
-                                    html.H6(
-                                        "Current Mouse Position", className="card-title"
-                                    ),
+                                    html.H6("Mouse Position", className="card-title"),
                                     html.Div(id="mousePos_disp", className="card-text"),
                                 ]
                             )
                         ],
                         className="img-control-grid",
-                    )
+                    ),
+                    width=4,
                 ),
                 dbc.Col(
                     dbc.Card(
@@ -238,10 +270,10 @@ coordinate_display = dbc.Container(
                                 ]
                             )
                         ],
-                        className="mb-1",
-                    )
+                        className="mb-1 img-control-card",
+                    ),
+                    width=8,
                 ),
-                dbc.Col(),
             ]
         ),
         dbc.Row(
@@ -254,10 +286,36 @@ coordinate_display = dbc.Container(
                             html.Div(id="imgScrControls_data", className="card-text"),
                         ]
                     )
-                ]
+                ],
+                className="img-control-card",
+            )
+        ),
+        dbc.Row(
+            dbc.Card(
+                [
+                    dbc.CardBody(
+                        [
+                            html.H5("Shape Table", className="card-title text-center"),
+                            dash_ag_grid.AgGrid(
+                                id="shapeDataTable",
+                                columnDefs=paperJsShapeColumns,
+                                columnSizeOptions={"defaultMaxWidth": 200},
+                                # columnSize="sizeToFit",
+                                defaultColDef={
+                                    "resizable": True,
+                                    "sortable": True,
+                                    "defaultMaxWidth": 150,
+                                },
+                            ),
+                        ],
+                        style={"margin": "0px", "padding": "0px"},
+                    )
+                ],
+                className="img-control-card",
             )
         ),
     ],
+    className="no-right-margin g-0",
 )
 
 
@@ -283,6 +341,7 @@ imageSelect_dropdown = html.Div(
 
 app.layout = dbc.Container(
     [
+        dcc.Store(id="osdShapeData_store", data={}),
         dbc.Row(dbc.Col(html.H1("Dash Paperdragon", className="text-center"))),
         dbc.Row(
             [
@@ -290,12 +349,11 @@ app.layout = dbc.Container(
                 dbc.Col(
                     coordinate_display,
                     width=4,
-                    style={"margin": "0px", "padding": "0px"},
                 ),
-            ]
+            ],
         ),
     ],
-    style={"margin": "10px", "padding": "0px"},
+    fluid=True,
 )
 ## End of layout
 
@@ -318,6 +376,7 @@ def handleOutputFromPaper(paperOutput):
     if callback:
         inputToPaper = callback(paperOutput.get("data"))
 
+    print("OFP:", outputFromPaper, "ITP", inputToPaper, "PO:", paperOutput)
     return inputToPaper, outputFromPaper
 
 
@@ -359,7 +418,7 @@ def generate_random_boxes(num_points, bounds):
 
 
 @callback(
-    Output("osdViewerComponent", "inputToPaper"),
+    Output("osdShapeData_store", "data"),
     Input("make_random_button", "n_clicks"),
     State("osdViewerComponent", "viewportBounds"),
     prevent_initial_call=True,
@@ -368,10 +427,21 @@ def make_random_boxes(n_clicks, bounds):
     out = {
         "actions": [
             {"type": "clearItems"},
-            {"type": "drawItems", "itemList": generate_random_boxes(1000, bounds)},
+            {"type": "drawItems", "itemList": generate_random_boxes(3, bounds)},
         ]
     }
     return out
+
+
+## This call back will get fairly complicated as it not only handled objects created in python
+## but also objects created in the paperjs side
+@callback(
+    Output("osdViewerComponent", "inputToPaper"), Input("osdShapeData_store", "data")
+)
+def update_osdShapeData_store(data):
+    ## This may not always update openseadragon depending on what changes occurred
+
+    return data
 
 
 ## This updates the mouse tracker
@@ -401,7 +471,9 @@ def updateZoomLevel(currentZoom):
 )
 def update_viewportBounds(viewPortBounds):
     vp = viewPortBounds
-    return f'x: {int(vp["x"])} y: {int(vp["y"])} w: {int(vp["width"])} h: {int(vp["height"])}'
+    return (
+        f'x:{int(vp["x"])} y:{int(vp["y"])} w:{int(vp["width"])} h:{int(vp["height"])}'
+    )
 
 
 def generateImgSrcControlPanel(tileSource, idx):
@@ -497,6 +569,25 @@ def generateImgSrcControlPanel(tileSource, idx):
     )
 
 
+# osdShapeData
+@callback(Output("shapeDataTable", "rowData"), Input("osdShapeData_store", "data"))
+def updateShapeDataTable(shapeData):
+    ### The structure of the data stats with
+    ##  array of actions
+    ## Then need to parse the actions to get the itemList
+    if not shapeData:
+        return []
+
+    flattened_data = []
+    for action in shapeData.get("actions", []):
+
+        if action["type"] == "drawItems":
+            for shp in action["itemList"]:
+                flattened_data.append(convertPaperInstructions_toTableForm(shp))
+                # pprint(shp)
+    return flattened_data
+
+
 @callback(Output("osdTileProperties", "children"), Input("imageSelect", "value"))
 def createTileSourceControls(tileSourceIdx):
     newTileSources = tileSourceDict.get(tileSourceIdx, None)
@@ -526,28 +617,6 @@ def process_tileSource_changes(x, y, opacity, rotation):
     if not ctx.triggered:
         return no_update
 
-    # Given complex array
-    complex_array = [
-        [
-            {"id": {"index": 0, "type": "x"}, "property": "value", "value": 0},
-            {"id": {"index": 1, "type": "x"}, "property": "value", "value": 0.2},
-        ],
-        [
-            {"id": {"index": 0, "type": "y"}, "property": "value", "value": 0},
-            {"id": {"index": 1, "type": "y"}, "property": "value", "value": 0.2},
-        ],
-        [
-            {"id": {"index": 0, "type": "opacity"}, "property": "value", "value": 1},
-            {"id": {"index": 1, "type": "opacity"}, "property": "value", "value": 0.2},
-        ],
-        [
-            {"id": {"index": 0, "type": "rotation"}, "property": "value", "value": 0},
-            {"id": {"index": 1, "type": "rotation"}, "property": "value", "value": 0},
-        ],
-    ]
-
-    from pprint import pprint
-
     # Transform the complex array to the specified format
     transformed_array = []
     indexes = set()
@@ -573,13 +642,6 @@ def process_tileSource_changes(x, y, opacity, rotation):
             for dict_ in transformed_array:
                 if dict_["index"] == index:
                     dict_[type_] = value
-
-    print(transformed_array)
-
-    # print(ctx.triggered)
-    # print(ctx.inputs_list)
-
-    # pprint(ctx.inputs_list)
 
     # for input_id, value in ctx.inputs_list[0]:
     #     print(input_id, value)
@@ -623,15 +685,6 @@ def process_tileSource_changes(x, y, opacity, rotation):
 #         item, f"card-{index}", column_width, selected_size
 #     )
 
-# [[{'id': {'index': 0, 'type': 'x'}, 'property': 'value', 'value': 0},
-#   {'id': {'index': 1, 'type': 'x'}, 'property': 'value', 'value': 0.2}],
-#  [{'id': {'index': 0, 'type': 'y'}, 'property': 'value', 'value': 0},
-#   {'id': {'index': 1, 'type': 'y'}, 'property': 'value', 'value': 0.2}],
-#  [{'id': {'index': 0, 'type': 'opacity'}, 'property': 'value', 'value': 1},
-#   {'id': {'index': 1, 'type': 'opacity'}, 'property': 'value', 'value': 0.2}],
-#  [{'id': {'index': 0, 'type': 'rotation'}, 'property': 'value', 'value': 0},
-#   {'id': {'index': 1, 'type': 'rotation'}, 'property': 'value', 'value': 0}]]
-
 
 # @callback(
 #     Output("curObject_disp", "children"), Input("osdViewerComponent", "curShapeObject")
@@ -657,6 +710,7 @@ def update_imageSrc(tileSourceIdx):
 
 def createItem(data):
     print("createItem", data)
+    # print("Some how called this?")
     x = get_box_instructions(
         data["point"]["x"],
         data["point"]["y"],

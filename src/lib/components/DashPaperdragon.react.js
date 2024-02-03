@@ -107,7 +107,7 @@ const DashPaperdragon = (props) => {
       if (!func) {
         alert('No action defined for type ' + action.type);
       } else {
-        console.log('Action:', action);
+        // console.log('Action:', action);
         func(action);
       }
     }

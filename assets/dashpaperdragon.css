@@ -1,7 +1,7 @@
 .img-control-grid {
-    margin: 5px;
-    padding: 5px;
-    margin-bottom: 2px;
+    margin: 1px !important;
+    padding: 1px !important;
+    margin-bottom: 2px !important;
 }
 
 /* CSS */
@@ -10,4 +10,24 @@
     /* Adjust as needed */
     height: 25px;
     /* Adjust as needed */
+}
+
+.img-control-card {
+    /* --bs-card-title-space: 0.5rem !important; */
+    padding: 1px !important;
+
+}
+
+.card-body {
+    padding: 0.15rem !important;
+    font-size: 1rem !important;
+}
+
+.card-title {
+    margin-bottom: 0.1rem !important;
+}
+
+/* CSS */
+.no-right-margin {
+    margin-right: 0px !important;
 }
