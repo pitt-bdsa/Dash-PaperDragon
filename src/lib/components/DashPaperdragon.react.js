@@ -15,6 +15,8 @@ const DashPaperdragon = (props) => {
     inputToPaper, // input property, telling the component how to update the paper overlay
     tileSourceProps, // input property, updates tileLayers  x offset, y, rotation or opacity
     baseImageWidth, // output property, sent by the component back to dash for tiledImage[0] width
+    viewerWidth = 640,  //viewer Width in pixels
+    viewerHeight = 480, //viewer Height in pixels
     setProps,
   } = props;
 
@@ -34,6 +36,7 @@ const DashPaperdragon = (props) => {
   const actionsRef = useRef({
     drawItems,
     clearItems,
+    drawGeoJsonFeatureSet,
     cycleProp,
     cyclePropReverse,
     deleteItem,
@@ -54,9 +57,13 @@ const DashPaperdragon = (props) => {
     // Clean up the viewer when the component unmounts
     return () => {
       if (viewerRef.current) {
+        
+       // if (tiledImageRef.paperLayer) tiledImageRef.paperLayout.remove();
+        
         viewerRef.current.destroy();
         viewerRef.current = null;
         tiledImageRef.current = null;
+
       }
     };
   }, []);
@@ -123,6 +130,18 @@ const DashPaperdragon = (props) => {
   function clearItems() {
     tiledImageRef.current.paperLayer.clear();
   }
+
+
+  function drawGeoJsonFeatureSet( action ) {
+    const list = action.itemList || [];
+    if (!list.length) {
+      console.warning('No items were provided in the itemList property');
+    }
+        
+    
+   };
+
+
 
   function drawItems(action) {
     const list = action.itemList || [];
@@ -442,7 +461,7 @@ const DashPaperdragon = (props) => {
 
     <div >
 
-      <div id={id} style={{ width: '800px', height: '600px' }}></div>
+      <div id={id} style={{ width: viewerWidth+'px', height: viewerHeight+'px' }}></div>
     </div>
   );
 }
@@ -493,6 +512,8 @@ DashPaperdragon.propTypes = {
   /* This is the width of the base image, which is the first image in the tileSources array */
   baseImageWidth: PropTypes.number,
 
+  viewerWidth: PropTypes.number,
+  viewerHeight: PropTypes.number,
   /**
    * Dash-assigned callback that should be called to report property changes
    * to Dash, to make them available for callbacks.

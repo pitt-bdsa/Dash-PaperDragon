@@ -85,6 +85,19 @@ tileSources = [
             },
         ],
     },
+    {
+        "label": "CDG Example",
+        "value": 2,
+        "tileSources": [
+            {
+                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
+                "x": 0,
+                "y": 0,
+                "opacity": 1,
+                "layerIdx": 0,
+            }
+        ],
+    },
 ]
 
 tileSourceDict = {x["label"]: x["tileSources"] for x in tileSources}
@@ -163,29 +176,48 @@ def convertPaperInstructions_toTableForm(data):
     if args:
         args = args[0]
 
-    # Flatten the data
-    flattened_data = {
-        "objectId": data["userdata"]["objectId"],
-        "fillOpacity": args["fillOpacity"],
-        "fillColor": args["fillColor"],
-        "class": data["userdata"]["class"],
-        "strokeColor": args["strokeColor"],
-        "rotation": args.get(
-            "rotation"
-        ),  # Use .get() to avoid KeyError if 'rotation' is not present
-        "x": args["point"]["x"],
-        "y": args["point"]["y"],
-        "width": args["size"]["width"],
-        "height": args["size"]["height"],
-    }
-    return flattened_data
+    # print(data, "was received")
+
+    ### The path is different for rectangles..
+    if data["paperType"] == "Path.Rectangle":
+
+        # Flatten the data
+        flattened_data = {
+            "objectId": data["userdata"]["objectId"],
+            "fillOpacity": args["fillOpacity"],
+            "fillColor": args["fillColor"],
+            "class": data["userdata"]["class"],
+            "strokeColor": args["strokeColor"],
+            "rotation": args.get(
+                "rotation"
+            ),  # Use .get() to avoid KeyError if 'rotation' is not present
+            "x": args["point"]["x"],
+            "y": args["point"]["y"],
+            "width": args["size"]["width"],
+            "height": args["size"]["height"],
+            "type": "Rectangle",
+        }
+        return flattened_data
+    elif data["paperType"] == "Path":
+        flattened_data = {
+            "objectId": data["userdata"]["objectId"],
+            "fillOpacity": args["fillOpacity"],
+            "fillColor": args["fillColor"],
+            "class": data["userdata"]["class"],
+            "strokeColor": args["strokeColor"],
+            "rotation": args.get("rotation"),
+        }
+        return flattened_data
+        # Use .get() to av
+    ## TO DO: process segments
 
 
 paperJsShapeColumns = [
-    {"field": "objectId", "width": 100, "sortable": True},
-    {"field": "fillOpacity", "headerName": "fill %", "width": 100},
-    {"field": "fillColor"},
-    {"field": "class"},
+    {"field": "objectId", "headerName": "objId", "width": 80, "sortable": True},
+    {"field": "type", "headerName": "Type", "width": 120},
+    {"field": "fillOpacity", "headerName": "fill %", "width": 80},
+    {"field": "fillColor", "width": 100},
+    {"field": "class", "width": 80},
     {"field": "strokeColor"},
     {"field": "rotation"},
     {"field": "x"},
@@ -204,6 +236,7 @@ osdElement = dash_paperdragon.DashPaperdragon(
     curMousePosition={"x": 0, "y": 0},
     inputToPaper=None,
     outputFromPaper=None,
+    viewerWidth=800,
 )
 
 ## Make HTML layout
@@ -396,13 +429,34 @@ app.layout = dbc.Container(
 def handleOutputFromPaper(
     paperOutput, make_random_boxesClicked, viewPortBounds, currentShapeData
 ):
+    ### Need to determine which input triggered the callback
+    ctx = callback_context
+    if not ctx.triggered:
+        return no_update, no_update
+
+    triggered_prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    # print(prop_id, "is the triggered context")
+    ## if the osdViewerComponent is the trigger then we need to process the outputFromPaper
+    if triggered_prop_id == "osdViewerComponent":
+        osdEventType = paperOutput.get("data", {}).get("event", "")
+        if osdEventType in ["mouseLeave", "mouseEnter"]:
+            return no_update, no_update
+
+        print(osdEventType, "is the osdEventType")
+
     inputToPaper = {}  ## this will be an array of commands to send to paper if needed
     inputToShapreDataStore = None
 
+    print(paperOutput, "is current paper output..")
+
+    # # {'data': {'event': 'mouseLeave', 'action': 'dashCallback', 'callback': 'mouseLeave'}} is current paper output..
+    # if paperOutput and paperOutput.get("data", {}).get("event", "") in [
+    #     "mouseLeave",
+    #     "mouseEnter",
+    # ]:
+    #     return no_update
+
     ### Need to also determine if the app is being called from the dash or javascript side
-    ctx = callback_context
-    if not ctx.triggered:
-        return no_update
 
     ctxProperty = ctx.triggered[0]["prop_id"].split(".")[0]
 
@@ -411,12 +465,12 @@ def handleOutputFromPaper(
 
     callback = callbacks.get(paperOutput.get("callback"))
 
-    if callback:
+    if callback and paperOutput.get("callback"):
         inputToPaper = callback(paperOutput.get("data"))
         ### Not sure if I need to append this..
         ## If action type is drawItems than I need to append to the currentShapeData
         if inputToPaper.get("actions")[0].get("type") == "drawItems":
-            currentShapeData.append(inputToPaper["actions"][0])
+            currentShapeData.append(inputToPaper["actions"][0]["itemList"])
             print("CSD-->", currentShapeData)
             return inputToPaper, currentShapeData
             # inputToShapreDataStore = currentShapeData
@@ -427,7 +481,7 @@ def handleOutputFromPaper(
         # bounds = paperOutput.get("viewportBounds")
         shapesToAdd = generate_random_boxes(3, viewPortBounds)
 
-        shapesToAdd = generate_paperjs_polygon("tbd")
+        # shapesToAdd = generate_paperjs_polygon("tbd")
         # print(shapesToAdd)
         inputToPaper = {
             "actions": [
@@ -435,7 +489,7 @@ def handleOutputFromPaper(
                 {"type": "drawItems", "itemList": shapesToAdd},
             ]
         }
-        print(shapesToAdd)
+        # print(shapesToAdd)
         return inputToPaper, shapesToAdd
 
     ### Need to interrogate the inputToPaper object and see if I need to update the data store
@@ -713,6 +767,7 @@ def process_tileSource_changes(x, y, opacity, rotation):
                 if dict_["index"] == index:
                     dict_[type_] = value
 
+    print(transformed_array)
     return json.dumps(transformed_array), transformed_array
 
 

@@ -13,7 +13,8 @@
 dashPaperdragon(id=NULL, baseImageWidth=NULL, config=NULL,
 curMousePosition=NULL, inputToPaper=NULL,
 outputFromPaper=NULL, tileSourceProps=NULL,
-tileSources=NULL, viewportBounds=NULL, zoomLevel=NULL)
+tileSources=NULL, viewerHeight=NULL, viewerWidth=NULL,
+viewportBounds=NULL, zoomLevel=NULL)
 }
 
 \arguments{
@@ -32,6 +33,10 @@ tileSources=NULL, viewportBounds=NULL, zoomLevel=NULL)
 \item{tileSourceProps}{Unnamed list. sent from dash to update x offset, y offset, rotation, or opacity of the image}
 
 \item{tileSources}{Character | unnamed list. the tile source for openseadragon}
+
+\item{viewerHeight}{Numeric. }
+
+\item{viewerWidth}{Numeric. }
 
 \item{viewportBounds}{Named list. viewportBounds of the current OSD Viewer}
 

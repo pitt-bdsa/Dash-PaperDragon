@@ -16,11 +16,13 @@ Keyword arguments:
 - `outputFromPaper` (Dict; optional): data sent from paper back to dash
 - `tileSourceProps` (Array; optional): sent from dash to update x offset, y offset, rotation, or opacity of the image
 - `tileSources` (String | Array; optional): the tile source for openseadragon
+- `viewerHeight` (Real; optional)
+- `viewerWidth` (Real; optional)
 - `viewportBounds` (Dict; optional): viewportBounds of the current OSD Viewer
 - `zoomLevel` (Real; optional): zoomLevel of the current OSD Viewer
 """
 function dashpaperdragon(; kwargs...)
-        available_props = Symbol[:id, :baseImageWidth, :config, :curMousePosition, :inputToPaper, :outputFromPaper, :tileSourceProps, :tileSources, :viewportBounds, :zoomLevel]
+        available_props = Symbol[:id, :baseImageWidth, :config, :curMousePosition, :inputToPaper, :outputFromPaper, :tileSourceProps, :tileSources, :viewerHeight, :viewerWidth, :viewportBounds, :zoomLevel]
         wild_props = Symbol[]
         return Component("dashpaperdragon", "DashPaperdragon", "dash_paperdragon", available_props, wild_props; kwargs...)
 end
