@@ -98,6 +98,42 @@ tileSources = [
             }
         ],
     },
+    {
+        "label": "ISIC Example",
+        "value": 3,
+        "tileSources": [
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e2309a9ffde668be5e/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e4309a9ffde668be70/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e4309a9ffde668be73/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be4f/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be58/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e0309a9ffde668be46/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767df309a9ffde668be43/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767ce309a9ffde668bd77/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767ce309a9ffde668bd7a/tiles/dzi.dzi"
+            },
+            {
+                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be52/tiles/dzi.dzi"
+            },
+        ],
+    },
 ]
 
 tileSourceDict = {x["label"]: x["tileSources"] for x in tileSources}
@@ -237,6 +273,7 @@ osdElement = dash_paperdragon.DashPaperdragon(
     inputToPaper=None,
     outputFromPaper=None,
     viewerWidth=800,
+    # curShapeObject=[],
 )
 
 ## Make HTML layout
@@ -356,21 +393,32 @@ coordinate_display = html.Div(
 
 imageSelect_dropdown = html.Div(
     [
-        html.Label("Select an image", className="text-center"),
+        html.Label(
+            "Select an image",
+            className="text-center mb-3",
+            style={"margin-top": "5px", "margin-right": "5px"},
+        ),  # "margin-bottom": "5px
         dbc.Select(
             id="imageSelect",
             options=[x["label"] for x in tileSources],
             value=tileSources[0]["label"],
             className="mb-4 d-inline",
-            style={"width": "400px", "marginLleft": "10px", "marginTop": "1px"},
+            style={"width": "300px", "marginLleft": "10px", "marginTop": "1px"},
         ),
         dbc.Button(
             "Make Random Rects",
             id="make_random_button",
-            className="mb-4 d-inline",
-            style={"marginLeft": "10px", "marginTop": "15px"},
+            className="m-1 d-inline",
+            style={"marginLeft": "10px", "height": "40px"},  # , "marginTop": "15px"},
+        ),
+        dbc.Switch(
+            id="clearItems-toggle",
+            label="Clear Items",
+            value=False,
+            className="mt-2 d-inline",
         ),
     ],
+    style={"display": "flex", "flex-direction": "row", "align": "center"},
 )
 
 
@@ -424,10 +472,11 @@ app.layout = dbc.Container(
     Input("make_random_button", "n_clicks"),
     State("osdViewerComponent", "viewportBounds"),
     State("osdShapeData_store", "data"),
+    State("clearItems-toggle", "value"),
     prevent_initial_call=True,
 )
 def handleOutputFromPaper(
-    paperOutput, make_random_boxesClicked, viewPortBounds, currentShapeData
+    paperOutput, make_random_boxesClicked, viewPortBounds, currentShapeData, clearItems
 ):
     ### Need to determine which input triggered the callback
     ctx = callback_context
@@ -438,64 +487,97 @@ def handleOutputFromPaper(
     # print(prop_id, "is the triggered context")
     ## if the osdViewerComponent is the trigger then we need to process the outputFromPaper
     if triggered_prop_id == "osdViewerComponent":
-        osdEventType = paperOutput.get("data", {}).get("event", "")
+        ### {'data': {'event': 'mouseLeave', 'action': 'dashCallback', 'callback': 'mouseLeave'}}  mouseEnter has a difefrent structure..
+
+        osdEventType = paperOutput.get("data", {}).get("callback", None)
+
+        if not osdEventType:
+            osdEventType = paperOutput.get("callback", None)
+
         if osdEventType in ["mouseLeave", "mouseEnter"]:
+            # print("MOUSE ENTER TRIGGERED")
+            # print(paperOutput)  # curObject_disp
             return no_update, no_update
+        elif osdEventType == "createItem":
+            print(paperOutput["data"])
 
-        print(osdEventType, "is the osdEventType")
+            si = get_box_instructions(
+                paperOutput["data"]["point"]["x"],
+                paperOutput["data"]["point"]["y"],
+                paperOutput["data"]["size"]["width"],
+                paperOutput["data"]["size"]["height"],
+                colors[0],
+                {"class": classes[0]},
+            )
+            currentShapeData.append(si)
 
-    inputToPaper = {}  ## this will be an array of commands to send to paper if needed
-    inputToShapreDataStore = None
+            return createItem(paperOutput["data"]), currentShapeData
 
-    print(paperOutput, "is current paper output..")
+    elif triggered_prop_id == "make_random_button":
+        ### Clear Items.. or not..
 
-    # # {'data': {'event': 'mouseLeave', 'action': 'dashCallback', 'callback': 'mouseLeave'}} is current paper output..
-    # if paperOutput and paperOutput.get("data", {}).get("event", "") in [
-    #     "mouseLeave",
-    #     "mouseEnter",
-    # ]:
-    #     return no_update
-
-    ### Need to also determine if the app is being called from the dash or javascript side
-
-    ctxProperty = ctx.triggered[0]["prop_id"].split(".")[0]
-
-    if paperOutput is None:
-        paperOutput = {}
-
-    callback = callbacks.get(paperOutput.get("callback"))
-
-    if callback and paperOutput.get("callback"):
-        inputToPaper = callback(paperOutput.get("data"))
-        ### Not sure if I need to append this..
-        ## If action type is drawItems than I need to append to the currentShapeData
-        if inputToPaper.get("actions")[0].get("type") == "drawItems":
-            currentShapeData.append(inputToPaper["actions"][0]["itemList"])
-            print("CSD-->", currentShapeData)
-            return inputToPaper, currentShapeData
-            # inputToShapreDataStore = currentShapeData
-
-        # currentShapeData.append()
-
-    if make_random_boxesClicked and not paperOutput.get("callback"):
-        # bounds = paperOutput.get("viewportBounds")
         shapesToAdd = generate_random_boxes(3, viewPortBounds)
+        inputToPaper = {"actions": []}
 
-        # shapesToAdd = generate_paperjs_polygon("tbd")
-        # print(shapesToAdd)
-        inputToPaper = {
-            "actions": [
-                {"type": "clearItems"},
-                {"type": "drawItems", "itemList": shapesToAdd},
-            ]
-        }
-        # print(shapesToAdd)
-        return inputToPaper, shapesToAdd
+        # If I don't clear items, I also need to update the shapesToAdd
+        if clearItems:
+            inputToPaper["actions"].append({"type": "clearItems"})
+            inputToPaper["actions"].append(
+                {"type": "drawItems", "itemList": shapesToAdd}
+            )
+            return inputToPaper, shapesToAdd
 
-    ### Need to interrogate the inputToPaper object and see if I need to update the data store
+        else:
+            ## Add new items to paper, and also update the local array store
+            print(currentShapeData)
+            print(type(currentShapeData))
+            inputToPaper["actions"].append(
+                {"type": "drawItems", "itemList": shapesToAdd}
+            )
+            print("Trying to concatenate the old and new data... hmm")
+            currentShapeData = currentShapeData + shapesToAdd
+            print(len(currentShapeData))
 
-    # print("ITP", inputToPaper, "PO:", paperOutput)
-    return inputToPaper, no_update
+            return inputToPaper, currentShapeData
+
+    else:
+        print(triggered_prop_id, "was the triggered prop")
+
+    return no_update, no_update
+
+    # inputToPaper = {}  ## this will be an array of commands to send to paper if needed
+
+    # if paperOutput is None:
+    #     paperOutput = {}
+
+    # callback = callbacks.get(paperOutput.get("callback"))
+
+    # if callback and paperOutput.get("callback"):
+    #     inputToPaper = callback(paperOutput.get("data"))
+    #     ### Not sure if I need to append this..
+    #     ## If action type is drawItems than I need to append to the currentShapeData
+    #     if inputToPaper.get("actions")[0].get("type") == "drawItems":
+    #         currentShapeData.append(inputToPaper["actions"][0]["itemList"])
+    #         # print("CSD-->", currentShapeData)
+    #         return inputToPaper, currentShapeData
+    #         # inputToShapreDataStore = currentShapeData
+
+    #     # currentShapeData.append()
+
+    # if make_random_boxesClicked and not paperOutput.get("callback"):
+    #     # bounds = paperOutput.get("viewportBounds")
+    #     shapesToAdd = generate_random_boxes(3, viewPortBounds)
+
+    #     # shapesToAdd = generate_paperjs_polygon("tbd")
+    #     # print(shapesToAdd)
+
+    #     # print(shapesToAdd)
+    #     return inputToPaper, shapesToAdd
+
+    # ### Need to interrogate the inputToPaper object and see if I need to update the data store
+
+    # # print("ITP", inputToPaper, "PO:", paperOutput)
+    # return inputToPaper, no_update
 
 
 def get_box_instructions(x, y, w, h, color, userdata={}):
@@ -767,24 +849,17 @@ def process_tileSource_changes(x, y, opacity, rotation):
                 if dict_["index"] == index:
                     dict_[type_] = value
 
-    print(transformed_array)
-    return json.dumps(transformed_array), transformed_array
+    ## This controls whether the text version for transformed array is displayed on the screen
+    # print(transformed_array)
+    # return json.dumps(transformed_array), transformed_array
+    return no_update, transformed_array
 
 
-# @callback(
-#     Output("curObject_disp", "children"), Input("osdViewerComponent", "curShapeObject")
-# )
-# def update_curShapeObject(curShapeObject):
-#     return f"Current Selected Shape: {json.dumps(curShapeObject)}"
-
-# Create a callback to update the opacity property when the slider value changes
-# @app.callback(
-#     [Output({'type': 'slider', 'index': i}, 'value') for i in range(len(data))],
-#     [Input({'type': 'slider', 'index': i}, 'value') for i in range(len(data))]
-# )
-# def update_opacity(*slider_values):
-#     print(slider_values)
-#     return slider_values
+@callback(
+    Output("curObject_disp", "children"), Input("osdViewerComponent", "curShapeObject")
+)
+def update_curShapeObject(curShapeObject):
+    return f"Current Selected Shape: {json.dumps(curShapeObject)}"
 
 
 @callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
@@ -794,7 +869,7 @@ def update_imageSrc(tileSourceIdx):
 
 
 def createItem(data):
-    print("createItem", data)
+    # cprint("createItem", data)
     # print("Some how called this?")
     x = get_box_instructions(
         data["point"]["x"],
@@ -806,6 +881,7 @@ def createItem(data):
     )
     out = {"actions": [{"type": "drawItems", "itemList": [x]}]}
     return out
+    # return out
 
 
 # this is if you want to trigger deleting and item from the python side
@@ -830,8 +906,19 @@ def mouseLeave(args):
 
 
 def mouseEnter(args):
+    # print(args)
     return None
 
 
 if __name__ == "__main__":
     app.run_server(debug=True)
+
+
+# Create a callback to update the opacity property when the slider value changes
+# @app.callback(
+#     [Output({'type': 'slider', 'index': i}, 'value') for i in range(len(data))],
+#     [Input({'type': 'slider', 'index': i}, 'value') for i in range(len(data))]
+# )
+# def update_opacity(*slider_values):
+#     print(slider_values)
+#     return slider_values
