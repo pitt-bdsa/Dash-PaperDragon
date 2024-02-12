@@ -11,10 +11,10 @@
 
 \usage{
 dashPaperdragon(id=NULL, baseImageWidth=NULL, config=NULL,
-curMousePosition=NULL, inputToPaper=NULL,
-outputFromPaper=NULL, tileSourceProps=NULL,
-tileSources=NULL, viewerHeight=NULL, viewerWidth=NULL,
-viewportBounds=NULL, zoomLevel=NULL)
+curMousePosition=NULL, curShapeObject=NULL,
+inputToPaper=NULL, outputFromPaper=NULL,
+tileSourceProps=NULL, tileSources=NULL, viewerHeight=NULL,
+viewerWidth=NULL, viewportBounds=NULL, zoomLevel=NULL)
 }
 
 \arguments{
@@ -25,6 +25,8 @@ viewportBounds=NULL, zoomLevel=NULL)
 \item{config}{Named list. config is a dictionary of options for setting up the component and initial rendering}
 
 \item{curMousePosition}{Named list. Current Mouse Position in Image Coordinates}
+
+\item{curShapeObject}{Named list. }
 
 \item{inputToPaper}{Named list. data sent from dash to paper}
 

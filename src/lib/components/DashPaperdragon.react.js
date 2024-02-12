@@ -17,6 +17,7 @@ const DashPaperdragon = (props) => {
     baseImageWidth, // output property, sent by the component back to dash for tiledImage[0] width
     viewerWidth = 640,  //viewer Width in pixels
     viewerHeight = 480, //viewer Height in pixels
+    curShapeObject = null, // output property, sent by the component back to dash this is the last shape object that was hovered over
     setProps,
   } = props;
 
@@ -57,9 +58,9 @@ const DashPaperdragon = (props) => {
     // Clean up the viewer when the component unmounts
     return () => {
       if (viewerRef.current) {
-        
-       // if (tiledImageRef.paperLayer) tiledImageRef.paperLayout.remove();
-        
+
+        // if (tiledImageRef.paperLayer) tiledImageRef.paperLayout.remove();
+
         viewerRef.current.destroy();
         viewerRef.current = null;
         tiledImageRef.current = null;
@@ -132,14 +133,14 @@ const DashPaperdragon = (props) => {
   }
 
 
-  function drawGeoJsonFeatureSet( action ) {
+  function drawGeoJsonFeatureSet(action) {
     const list = action.itemList || [];
     if (!list.length) {
       console.warning('No items were provided in the itemList property');
     }
-        
-    
-   };
+
+
+  };
 
 
 
@@ -461,7 +462,7 @@ const DashPaperdragon = (props) => {
 
     <div >
 
-      <div id={id} style={{ width: viewerWidth+'px', height: viewerHeight+'px' }}></div>
+      <div id={id} style={{ width: viewerWidth + 'px', height: viewerHeight + 'px' }}></div>
     </div>
   );
 }
@@ -514,6 +515,9 @@ DashPaperdragon.propTypes = {
 
   viewerWidth: PropTypes.number,
   viewerHeight: PropTypes.number,
+
+  /* This is the last shape object that was hovered over */
+  curShapeObject: PropTypes.object,
   /**
    * Dash-assigned callback that should be called to report property changes
    * to Dash, to make them available for callbacks.

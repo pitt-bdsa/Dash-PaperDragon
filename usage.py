@@ -325,6 +325,7 @@ coordinate_display = html.Div(
                             )
                         ],
                         className="img-control-grid",
+                        style={"height": "3.5rem"},
                     ),
                     width=4,
                 ),
@@ -378,16 +379,24 @@ coordinate_display = html.Div(
                                     "sortable": True,
                                     "defaultMaxWidth": 150,
                                 },
+                                style={"height": "300px"},
                             ),
                         ],
-                        style={"margin": "0px", "padding": "0px"},
+                        style={
+                            "margin": "0px",
+                            "padding": "0px",
+                            "margin-bottom": "10px",
+                            # "height": "200px",
+                        },
                     )
                 ],
                 className="img-control-card",
+                style={"height": "100px"},
             )
         ),
     ],
     className="no-right-margin g-0",
+    # style={"display": "flex", "flex-direction": "row"},
 )
 
 
@@ -440,34 +449,14 @@ app.layout = dbc.Container(
 )
 ## End of layout
 
-
-## Refactoring outputs and inputsto paper..
-
-# if n_clicks:
-#     inputToPaper = {"actions": [{"type": "clearItems"}]}
-
-# return inputToPaper, outputFromPaper
+### OutputFromPaper needs to be cleared as well once the message/state has been acknowledged
 
 
-# @callback(
-#     Output("osdShapeData_store", "data"),
-#     Input("make_random_button", "n_clicks"),
-#     State("osdViewerComponent", "viewportBounds"),
-#     prevent_initial_call=True,
-# )
-# def make_random_boxes(n_clicks, bounds):
-#     out = {
-#         "actions": [
-#             {"type": "clearItems"},
-#             {"type": "drawItems", "itemList": generate_random_boxes(3, bounds)},
-#         ]
-#     }
-#     return out
-
-
+## NEED TO CLEAR THE MESSAGE ONCE THE EVENT FIRES...
 @callback(
     Output("osdViewerComponent", "inputToPaper", allow_duplicate=True),
     Output("osdShapeData_store", "data"),
+    Output("osdViewerComponent", "outputFromPaper"),
     Input("osdViewerComponent", "outputFromPaper"),
     Input("make_random_button", "n_clicks"),
     State("osdViewerComponent", "viewportBounds"),
@@ -479,9 +468,13 @@ def handleOutputFromPaper(
     paperOutput, make_random_boxesClicked, viewPortBounds, currentShapeData, clearItems
 ):
     ### Need to determine which input triggered the callback
+
     ctx = callback_context
+    print(paperOutput)
+    print(ctx.triggered_id, ctx.triggered_prop_ids)
+
     if not ctx.triggered:
-        return no_update, no_update
+        return no_update, no_update, {}
 
     triggered_prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
     # print(prop_id, "is the triggered context")
@@ -490,14 +483,14 @@ def handleOutputFromPaper(
         ### {'data': {'event': 'mouseLeave', 'action': 'dashCallback', 'callback': 'mouseLeave'}}  mouseEnter has a difefrent structure..
 
         osdEventType = paperOutput.get("data", {}).get("callback", None)
-
+        print(osdEventType, "is the osdEventType")
         if not osdEventType:
             osdEventType = paperOutput.get("callback", None)
 
         if osdEventType in ["mouseLeave", "mouseEnter"]:
             # print("MOUSE ENTER TRIGGERED")
             # print(paperOutput)  # curObject_disp
-            return no_update, no_update
+            return no_update, no_update, {}
         elif osdEventType == "createItem":
             print(paperOutput["data"])
 
@@ -511,7 +504,33 @@ def handleOutputFromPaper(
             )
             currentShapeData.append(si)
 
-            return createItem(paperOutput["data"]), currentShapeData
+            return createItem(paperOutput["data"]), currentShapeData, {}
+        elif osdEventType == "propertyChanged":
+            ### Handle property change.. probably class change but could be color or other thing in the future
+            # print(paperOutput["data"])
+            # print(changedProp, "is the changedProp")
+            ## TO DO--- THIS IS NOT CONSISTENTLY FIRING ON EVERY CHANGE..
+
+            changedProp = paperOutput.get("data", {}).get("property", "")
+            if changedProp == "class":
+                newClass = paperOutput.get("data", {}).get("item", {}).get("class", "")
+                objectId = (
+                    paperOutput.get("data", {}).get("item", {}).get("objectId", "")
+                )
+                for r in currentShapeData:
+                    if r["userdata"]["objectId"] == objectId:
+                        r["userdata"]["class"] = newClass
+                        print("Changed object class to", newClass)
+                        break
+                return no_update, currentShapeData, {}
+                #
+
+            ## Note the class is changing, but that also changes the color... will need to think about how to keep all this stuff in sync
+        else:
+            print("Unhandled osdEventType", osdEventType)
+            print(paperOutput, "is the paperOutput")
+
+    # {'callback': 'propertyChanged', 'data': {'item': {'class': 'e', 'objectId': 1}, 'property': 'class'}} is the paperOutput
 
     elif triggered_prop_id == "make_random_button":
         ### Clear Items.. or not..
@@ -525,59 +544,24 @@ def handleOutputFromPaper(
             inputToPaper["actions"].append(
                 {"type": "drawItems", "itemList": shapesToAdd}
             )
-            return inputToPaper, shapesToAdd
+            return inputToPaper, shapesToAdd, {}
 
         else:
             ## Add new items to paper, and also update the local array store
-            print(currentShapeData)
-            print(type(currentShapeData))
+            # print(currentShapeData)
+            # print(type(currentShapeData))
             inputToPaper["actions"].append(
                 {"type": "drawItems", "itemList": shapesToAdd}
             )
-            print("Trying to concatenate the old and new data... hmm")
+            # print("Trying to concatenate the old and new data... hmm")
             currentShapeData = currentShapeData + shapesToAdd
-            print(len(currentShapeData))
 
-            return inputToPaper, currentShapeData
+            return inputToPaper, currentShapeData, {}
 
     else:
         print(triggered_prop_id, "was the triggered prop")
 
-    return no_update, no_update
-
-    # inputToPaper = {}  ## this will be an array of commands to send to paper if needed
-
-    # if paperOutput is None:
-    #     paperOutput = {}
-
-    # callback = callbacks.get(paperOutput.get("callback"))
-
-    # if callback and paperOutput.get("callback"):
-    #     inputToPaper = callback(paperOutput.get("data"))
-    #     ### Not sure if I need to append this..
-    #     ## If action type is drawItems than I need to append to the currentShapeData
-    #     if inputToPaper.get("actions")[0].get("type") == "drawItems":
-    #         currentShapeData.append(inputToPaper["actions"][0]["itemList"])
-    #         # print("CSD-->", currentShapeData)
-    #         return inputToPaper, currentShapeData
-    #         # inputToShapreDataStore = currentShapeData
-
-    #     # currentShapeData.append()
-
-    # if make_random_boxesClicked and not paperOutput.get("callback"):
-    #     # bounds = paperOutput.get("viewportBounds")
-    #     shapesToAdd = generate_random_boxes(3, viewPortBounds)
-
-    #     # shapesToAdd = generate_paperjs_polygon("tbd")
-    #     # print(shapesToAdd)
-
-    #     # print(shapesToAdd)
-    #     return inputToPaper, shapesToAdd
-
-    # ### Need to interrogate the inputToPaper object and see if I need to update the data store
-
-    # # print("ITP", inputToPaper, "PO:", paperOutput)
-    # return inputToPaper, no_update
+    return no_update, no_update, {}
 
 
 def get_box_instructions(x, y, w, h, color, userdata={}):
@@ -859,7 +843,11 @@ def process_tileSource_changes(x, y, opacity, rotation):
     Output("curObject_disp", "children"), Input("osdViewerComponent", "curShapeObject")
 )
 def update_curShapeObject(curShapeObject):
-    return f"Current Selected Shape: {json.dumps(curShapeObject)}"
+    if curShapeObject:
+        return json.dumps(curShapeObject.get("userdata", {}))
+    else:
+        return no_update
+    # return f"Current Selected Shape: {json.dumps(curShapeObject)}"
 
 
 @callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
@@ -922,3 +910,38 @@ if __name__ == "__main__":
 # def update_opacity(*slider_values):
 #     print(slider_values)
 #     return slider_values
+
+
+# inputToPaper = {}  ## this will be an array of commands to send to paper if needed
+
+# if paperOutput is None:
+#     paperOutput = {}
+
+# callback = callbacks.get(paperOutput.get("callback"))
+
+# if callback and paperOutput.get("callback"):
+#     inputToPaper = callback(paperOutput.get("data"))
+#     ### Not sure if I need to append this..
+#     ## If action type is drawItems than I need to append to the currentShapeData
+#     if inputToPaper.get("actions")[0].get("type") == "drawItems":
+#         currentShapeData.append(inputToPaper["actions"][0]["itemList"])
+#         # print("CSD-->", currentShapeData)
+#         return inputToPaper, currentShapeData
+#         # inputToShapreDataStore = currentShapeData
+
+#     # currentShapeData.append()
+
+# if make_random_boxesClicked and not paperOutput.get("callback"):
+#     # bounds = paperOutput.get("viewportBounds")
+#     shapesToAdd = generate_random_boxes(3, viewPortBounds)
+
+#     # shapesToAdd = generate_paperjs_polygon("tbd")
+#     # print(shapesToAdd)
+
+#     # print(shapesToAdd)
+#     return inputToPaper, shapesToAdd
+
+# ### Need to interrogate the inputToPaper object and see if I need to update the data store
+
+# # print("ITP", inputToPaper, "PO:", paperOutput)
+# return inputToPaper, no_update
