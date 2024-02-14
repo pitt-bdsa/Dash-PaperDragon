@@ -156,6 +156,9 @@ const DashPaperdragon = (props) => {
   }
 
   function deleteItem(opts) {
+
+    raiseEvent('item-deleted', { item: opts.item });
+    // console.log(opts)
     if (opts.item) {
       opts.item.remove();
     } else if (opts.id) {

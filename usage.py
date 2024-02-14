@@ -11,7 +11,6 @@ from dash import (
     MATCH,
     callback_context,
     no_update,
-    dash_table,
 )
 import dash_bootstrap_components as dbc
 import json, random
@@ -180,6 +179,8 @@ def cbCreateItem(args):
 
 
 def cbItemDeleted(args):
+    print(args)
+    print("Item Deleted")
     return itemDeleted(args)
 
 
@@ -470,8 +471,8 @@ def handleOutputFromPaper(
     ### Need to determine which input triggered the callback
 
     ctx = callback_context
-    print(paperOutput)
-    print(ctx.triggered_id, ctx.triggered_prop_ids)
+    # print(paperOutput, "is the paperOutput")
+    # print(ctx.triggered_id, ctx.triggered_prop_ids)
 
     if not ctx.triggered:
         return no_update, no_update, {}
@@ -483,7 +484,7 @@ def handleOutputFromPaper(
         ### {'data': {'event': 'mouseLeave', 'action': 'dashCallback', 'callback': 'mouseLeave'}}  mouseEnter has a difefrent structure..
 
         osdEventType = paperOutput.get("data", {}).get("callback", None)
-        print(osdEventType, "is the osdEventType")
+        # print(osdEventType, "is the osdEventType")
         if not osdEventType:
             osdEventType = paperOutput.get("callback", None)
 
@@ -492,7 +493,7 @@ def handleOutputFromPaper(
             # print(paperOutput)  # curObject_disp
             return no_update, no_update, {}
         elif osdEventType == "createItem":
-            print(paperOutput["data"])
+            # print(paperOutput["data"])
 
             si = get_box_instructions(
                 paperOutput["data"]["point"]["x"],
@@ -523,7 +524,15 @@ def handleOutputFromPaper(
                         print("Changed object class to", newClass)
                         break
                 return no_update, currentShapeData, {}
-                #
+        elif osdEventType == "itemDeleted":
+            print(paperOutput["data"]["item"])
+            itemId = paperOutput["data"]["item"][1]["data"]["userdata"]["objectId"]
+            print("Item Deleted", itemId)
+            currentShapeData = [
+                x for x in currentShapeData if x["userdata"]["objectId"] != itemId
+            ]
+            return no_update, currentShapeData, {}
+            ### TO DO-- CLARIFY FROM TOM WHAT THE DELETEITEM callback should return in the react component
 
             ## Note the class is changing, but that also changes the color... will need to think about how to keep all this stuff in sync
         else:
