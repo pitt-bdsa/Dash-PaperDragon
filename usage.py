@@ -58,6 +58,11 @@ tileSources = [
         "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
     },
     {
+        "label": "TCGA-BF-A1Q0-01A-02-TSB",
+        "value": 0,
+        "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f10a8e62914002e956509/tiles/dzi.dzi",
+    },
+    {
         "label": "TCGA-2J-AAB4-01Z-00-DX1",
         "value": 1,
         "tileSources": [

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import PropTypes, { shape } from 'prop-types';
 import OpenSeadragon from 'openseadragon';
 import { AnnotationToolkit, RectangleTool } from 'osd-paperjs-annotation';
+import { DSAAdapter } from './dsaGeoJsonAdapter';
 
 /* OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer */
 const DashPaperdragon = (props) => {
@@ -37,6 +38,7 @@ const DashPaperdragon = (props) => {
   const actionsRef = useRef({
     drawItems,
     clearItems,
+    drawDsaAnnotations,
     drawGeoJsonFeatureSet,
     cycleProp,
     cyclePropReverse,
@@ -141,6 +143,18 @@ const DashPaperdragon = (props) => {
 
 
   };
+
+  function drawDsaAnnotations(action){
+    const list = action.itemList || [];
+    if (!list.length) {
+      console.warning('No items were provided in the itemList property');
+    }
+
+    for(const dsa of list){
+      const geoJson = DSAAdapter.dsaToGeoJson(dsa);
+
+    }
+  }
 
 
 
@@ -293,6 +307,25 @@ const DashPaperdragon = (props) => {
     const tk = new AnnotationToolkit(viewerRef.current, { overlay: null, addUI: false });
     console.log('Toolkit:', tk);
     toolkitRef.current = tk;
+
+    // bind to viewer.world.addItem and load any dsa annotations
+    viewerRef.current.world.addHandler('add-item', async event=>{
+      const src = event.item.source.tilesUrl || await event.item.source.getTileUrl(0, 0, 0);
+      console.log('Opened', src, event);
+      if(typeof src === 'string'){
+        const match = src.match(/(.*api\/+v1)\/+item\/+(.*?)\//i);
+        if(match){
+          const base = match[1];
+          const itemId = match[2];
+          fetch(`${base}/annotation/item/${itemId}`).then(d=>d.json()).then(d=>{
+            console.log(`Got annotations for ${itemId}:`, d);
+            for(const annotation of d){
+              tk.addFeatureCollections(DSAAdapter.dsaToGeoJson(annotation), false, event.item);
+            }
+          })
+        }
+      }
+    })
 
     const overlay = overlayRef.current = tk.overlay;
     // for easier debugging: attach objects to window
