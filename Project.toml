@@ -2,7 +2,7 @@
 name = "DashPaperdragon"
 uuid = "1b08a953-4be3-4667-9a23-a50b685e1be1"
 authors = ["David Gutman <dagutman@gmail.com>"]
-version = "0.0.1"
+version = "0.0.9"
 
 [deps]
 Dash = "1b08a953-4be3-4667-9a23-3db579824955"

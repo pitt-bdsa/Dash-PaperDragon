@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import PropTypes, { shape } from 'prop-types';
 import OpenSeadragon from 'openseadragon';
 import { AnnotationToolkit, RectangleTool } from 'osd-paperjs-annotation';
+import { DSAAdapter } from './dsaGeoJsonAdapter';
 
 /* OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer */
 const DashPaperdragon = (props) => {
@@ -13,6 +14,11 @@ const DashPaperdragon = (props) => {
     viewportBounds, // output property, sent by the component back to dash
     outputFromPaper, // output property, seny by the component back to dash
     inputToPaper, // input property, telling the component how to update the paper overlay
+    tileSourceProps, // input property, updates tileLayers  x offset, y, rotation or opacity
+    baseImageWidth, // output property, sent by the component back to dash for tiledImage[0] width
+    viewerWidth = 640,  //viewer Width in pixels
+    viewerHeight = 480, //viewer Height in pixels
+    curShapeObject = null, // output property, sent by the component back to dash this is the last shape object that was hovered over
     setProps,
   } = props;
 
@@ -32,6 +38,8 @@ const DashPaperdragon = (props) => {
   const actionsRef = useRef({
     drawItems,
     clearItems,
+    drawDsaAnnotations,
+    drawGeoJsonFeatureSet,
     cycleProp,
     cyclePropReverse,
     deleteItem,
@@ -52,12 +60,39 @@ const DashPaperdragon = (props) => {
     // Clean up the viewer when the component unmounts
     return () => {
       if (viewerRef.current) {
+
+        // if (tiledImageRef.paperLayer) tiledImageRef.paperLayout.remove();
+
         viewerRef.current.destroy();
         viewerRef.current = null;
         tiledImageRef.current = null;
+
       }
     };
   }, []);
+
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    // console.log(tileSourceProps, "are being updated")
+
+    if (tileSourceProps) {
+      for (let i = 0; i < tileSourceProps.length; i++) {
+        let curTileSource = viewer.world.getItemAt(i);
+        // for (let prop in tileSourceProps[i]) {
+        if (curTileSource) {
+          // console.log(tileSourceProps[i].opacity);
+          //Updating opacity, position and rotation...
+          //Future state could only update properties that have changed, but these operations seem
+          //fast enough that it may not be necessary
+          curTileSource.setOpacity(tileSourceProps[i].opacity);
+          curTileSource.setPosition({ x: tileSourceProps[i].x, y: tileSourceProps[i].y })
+          curTileSource.setRotation(tileSourceProps[i].rotation);
+        }
+      }
+      //Iterate through the tilesources and change the opacity
+    }
+  }, [tileSourceProps]);
 
 
   /** add reactive components via useEffect, listening to property changes */
@@ -83,7 +118,7 @@ const DashPaperdragon = (props) => {
       if (!func) {
         alert('No action defined for type ' + action.type);
       } else {
-        console.log('Action:', action);
+        // console.log('Action:', action);
         func(action);
       }
     }
@@ -99,6 +134,30 @@ const DashPaperdragon = (props) => {
     tiledImageRef.current.paperLayer.clear();
   }
 
+
+  function drawGeoJsonFeatureSet(action) {
+    const list = action.itemList || [];
+    if (!list.length) {
+      console.warning('No items were provided in the itemList property');
+    }
+
+
+  };
+
+  function drawDsaAnnotations(action){
+    const list = action.itemList || [];
+    if (!list.length) {
+      console.warning('No items were provided in the itemList property');
+    }
+
+    for(const dsa of list){
+      const geoJson = DSAAdapter.dsaToGeoJson(dsa);
+
+    }
+  }
+
+
+
   function drawItems(action) {
     const list = action.itemList || [];
     if (!list.length) {
@@ -111,6 +170,9 @@ const DashPaperdragon = (props) => {
   }
 
   function deleteItem(opts) {
+
+    raiseEvent('item-deleted', { item: opts.item });
+    // console.log(opts)
     if (opts.item) {
       opts.item.remove();
     } else if (opts.id) {
@@ -245,6 +307,25 @@ const DashPaperdragon = (props) => {
     const tk = new AnnotationToolkit(viewerRef.current, { overlay: null, addUI: false });
     console.log('Toolkit:', tk);
     toolkitRef.current = tk;
+
+    // bind to viewer.world.addItem and load any dsa annotations
+    viewerRef.current.world.addHandler('add-item', async event=>{
+      const src = event.item.source.tilesUrl || await event.item.source.getTileUrl(0, 0, 0);
+      console.log('Opened', src, event);
+      if(typeof src === 'string'){
+        const match = src.match(/(.*api\/+v1)\/+item\/+(.*?)\//i);
+        if(match){
+          const base = match[1];
+          const itemId = match[2];
+          fetch(`${base}/annotation/item/${itemId}`).then(d=>d.json()).then(d=>{
+            console.log(`Got annotations for ${itemId}:`, d);
+            for(const annotation of d){
+              tk.addFeatureCollections(DSAAdapter.dsaToGeoJson(annotation), false, event.item);
+            }
+          })
+        }
+      }
+    })
 
     const overlay = overlayRef.current = tk.overlay;
     // for easier debugging: attach objects to window
@@ -417,7 +498,7 @@ const DashPaperdragon = (props) => {
 
     <div >
 
-      <div id={id} style={{ width: '800px', height: '600px' }}></div>
+      <div id={id} style={{ width: viewerWidth + 'px', height: viewerHeight + 'px' }}></div>
     </div>
   );
 }
@@ -460,7 +541,19 @@ DashPaperdragon.propTypes = {
    * data sent from dash to paper
    */
   inputToPaper: PropTypes.object,
+  /**
+   * sent from dash to update x offset, y offset, rotation, or opacity of the image
+   */
 
+  tileSourceProps: PropTypes.array,
+  /* This is the width of the base image, which is the first image in the tileSources array */
+  baseImageWidth: PropTypes.number,
+
+  viewerWidth: PropTypes.number,
+  viewerHeight: PropTypes.number,
+
+  /* This is the last shape object that was hovered over */
+  curShapeObject: PropTypes.object,
   /**
    * Dash-assigned callback that should be called to report property changes
    * to Dash, to make them available for callbacks.
@@ -485,11 +578,11 @@ export default DashPaperdragon;
             * app server if a callback uses the modified prop as
             * Input or State.
             */
-  // e => setProps({ value: e.target.value })
-  // / Assuming your array is called 'data' and the column with the unique value is 'columnName'
-  // const rowIndex = data.findIndex(row => row.columnName === uniqueValue);
+// e => setProps({ value: e.target.value })
+// / Assuming your array is called 'data' and the column with the unique value is 'columnName'
+// const rowIndex = data.findIndex(row => row.columnName === uniqueValue);
 
-  // if (rowIndex !== -1) {
-  //   // Update the row at the found index with the desired changes
-  //   data[rowIndex].columnName = newValue;
-  // }
+// if (rowIndex !== -1) {
+//   // Update the row at the found index with the desired changes
+//   data[rowIndex].columnName = newValue;
+// }
