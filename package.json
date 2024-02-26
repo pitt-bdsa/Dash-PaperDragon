@@ -1,6 +1,6 @@
 {
   "name": "dash_paperdragon",
-  "version": "0.0.9",
+  "version": "0.0.91",
   "description": "OpenSeaDragon and PaperJS component for Dash and the DSA",
   "repository": {
     "type": "git",

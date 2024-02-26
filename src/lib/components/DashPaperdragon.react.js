@@ -45,6 +45,7 @@ const DashPaperdragon = (props) => {
     deleteItem,
     dashCallback,
     newItem,
+    editItem
   });
 
   function raiseEvent(eventName, data) {
@@ -144,13 +145,13 @@ const DashPaperdragon = (props) => {
 
   };
 
-  function drawDsaAnnotations(action){
+  function drawDsaAnnotations(action) {
     const list = action.itemList || [];
     if (!list.length) {
       console.warning('No items were provided in the itemList property');
     }
 
-    for(const dsa of list){
+    for (const dsa of list) {
       const geoJson = DSAAdapter.dsaToGeoJson(dsa);
 
     }
@@ -181,6 +182,35 @@ const DashPaperdragon = (props) => {
     } else {
       console.error('deleteItem  called without item or id field');
     }
+
+  }
+
+
+  function editItem(opts) {
+
+    // raiseEvent('item-deleted', { item: opts.item });
+    // console.log(opts)
+    if (!opts.item) {
+      return;
+    }
+    console.log(opts.item);
+    console.log(paperRef.current);
+    opts.item.selected = true;
+    opts.item.isGeoJsonFeature = true;
+
+
+    // item.isPlaceholder = true;
+    // tiledImageRef.current.addPaperItem(item);
+    // creatingRef.current = item;
+    // item.on('item-replaced', (ev) => creatingRef.current = ev.item);
+    paperRef.current.rectangleTool.activate();
+
+
+
+
+
+
+
 
   }
 
@@ -309,17 +339,17 @@ const DashPaperdragon = (props) => {
     toolkitRef.current = tk;
 
     // bind to viewer.world.addItem and load any dsa annotations
-    viewerRef.current.world.addHandler('add-item', async event=>{
+    viewerRef.current.world.addHandler('add-item', async event => {
       const src = event.item.source.tilesUrl || await event.item.source.getTileUrl(0, 0, 0);
       console.log('Opened', src, event);
-      if(typeof src === 'string'){
+      if (typeof src === 'string') {
         const match = src.match(/(.*api\/+v1)\/+item\/+(.*?)\//i);
-        if(match){
+        if (match) {
           const base = match[1];
           const itemId = match[2];
-          fetch(`${base}/annotation/item/${itemId}`).then(d=>d.json()).then(d=>{
+          fetch(`${base}/annotation/item/${itemId}`).then(d => d.json()).then(d => {
             console.log(`Got annotations for ${itemId}:`, d);
-            for(const annotation of d){
+            for (const annotation of d) {
               tk.addFeatureCollections(DSAAdapter.dsaToGeoJson(annotation), false, event.item);
             }
           })

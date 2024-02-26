@@ -1,6 +1,6 @@
 Package: dashPaperdragon
 Title: OpenSeaDragon and PaperJS component for Dash and the DSA
-Version: 0.0.9
+Version: 0.0.91
 Description: OpenSeaDragon and PaperJS component for Dash and the DSA
 Depends: R (>= 3.0.2)
 Imports: 
