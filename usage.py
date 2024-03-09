@@ -45,6 +45,7 @@ def getId():
 # cyclePropReverse (property)
 # deleteItem
 # newItem
+# editItem
 # dashCallback (callback)
 
 # supported callback functions:
@@ -162,6 +163,7 @@ config = {
         {"eventName": "item-created", "callback": "createItem"},
         {"eventName": "property-changed", "callback": "propertyChanged"},
         {"eventName": "item-deleted", "callback": "itemDeleted"},
+        {"eventName": "item-edited", "callback": "itemEdited"},
     ],
     "properties": {"class": classes},
     "defaultStyle": {
@@ -189,6 +191,11 @@ def cbItemDeleted(args):
     print("Item Deleted")
     return itemDeleted(args)
 
+def cbItemEdited(args):
+    print(args)
+    print("Item Edited")
+    return itemEdited(args)
+
 
 def cbMouseEnter(args):
     return mouseEnter(args)
@@ -204,6 +211,7 @@ def cbPropertyChanged(args):
 
 callbacks = {
     "createItem": cbCreateItem,
+    "itemEdited": cbItemEdited,
     "itemDeleted": cbItemDeleted,
     "mouseEnter": cbMouseEnter,
     "mouseLeave": cbMouseLeave,
@@ -898,7 +906,12 @@ def itemDeleted(data):
     print("itemDeleted", data)
     return None
 
+# this listens to an edited event triggered from the client side
+def itemEdited(data):
+    print('itemEdited', data)
+    return None
 
+# this listens to a property changed event triggered from the client side
 def propertyChanged(data):
     print("propertyChanged", data)
     return None

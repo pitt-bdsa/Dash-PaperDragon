@@ -33,6 +33,7 @@ const DashPaperdragon = (props) => {
   const paperMousePosRef = useRef({ x: 0, y: 0 });
   const keyDownRef = useRef(null);
   const creatingRef = useRef(null);
+  const editingRef = useRef(null);
 
   /** Define actions */
   const actionsRef = useRef({
@@ -188,33 +189,36 @@ const DashPaperdragon = (props) => {
 
   function editItem(opts) {
 
-    // raiseEvent('item-deleted', { item: opts.item });
-    // console.log(opts)
+    if(creatingRef.current){
+      return; // can't edit when you're already creating an item
+    }
+
     if (!opts.item) {
       return;
     }
-    console.log(opts.item);
-    console.log(paperRef.current);
-    opts.item.selected = true;
-    opts.item.isGeoJsonFeature = true;
 
-
-    // item.isPlaceholder = true;
-    // tiledImageRef.current.addPaperItem(item);
-    // creatingRef.current = item;
-    // item.on('item-replaced', (ev) => creatingRef.current = ev.item);
-    paperRef.current.rectangleTool.activate();
-
-
-
-
-
-
-
+    if(editingRef.current){
+      editingRef.current = null;
+      opts.item.selected = false;
+      paperRef.current.rectangleTool.deactivate();
+      const bounds = opts.item.bounds;
+      raiseEvent('item-edited', {
+        point: { x: bounds.x, y: bounds.y },
+        size: { width: bounds.width, height: bounds.height }
+      });
+    } else {
+      editingRef.current = opts.item;
+      opts.item.selected = true;
+      paperRef.current.rectangleTool.activate();
+    }
 
   }
 
   function newItem(opts) {
+    if(editingRef.current){
+      return; // can't start a new item when you're editing one already
+    }
+
     if (creatingRef.current) {
       const item = creatingRef.current;
 
@@ -488,6 +492,9 @@ const DashPaperdragon = (props) => {
       hoveredItemRef.current = null;
       executeBoundEvents({ event: 'mouseLeave' }, { item: event.target.data });
     }
+
+    // register the item with the annotation toolkit
+    AnnotationToolkit.registerFeature(item);
 
     return item;
   }
