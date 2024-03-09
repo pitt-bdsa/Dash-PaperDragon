@@ -155,6 +155,8 @@ const DashPaperdragon = (props) => {
     for (const dsa of list) {
       const geoJson = DSAAdapter.dsaToGeoJson(dsa);
 
+
+
     }
   }
 
@@ -166,8 +168,32 @@ const DashPaperdragon = (props) => {
       console.warning('No items were provided in the itemList property');
     }
     for (const i of list) {
-      const item = makeItem(i);
+      // We now expect all of the objects to be in geojson format
+      let item = paperRef.current.Item.fromGeoJSON(i);
+
       tiledImageRef.current.addPaperItem(item);
+
+      console.log(item);
+      //Set a small value so that the object is not technically empty
+      //for mouse Enter/leave callbacks
+      item.fillOpacity = i.fillOpacity || 0.001;
+      item.updateFillOpacity();
+
+      // item.fillOpacity = i.properties.fillOpacity || 0.5;
+      item.onMouseEnter = event => {
+        // console.log(event)
+        // console.log(`Item is ${event.target.annotationItem}`);
+
+        setProps({ "curShapeObject": event.target.annotationItem.toGeoJSONFeature() });
+        hoveredItemRef.current = event.target.annotationItem;
+        executeBoundEvents({ event: 'mouseEnter' }, { item: event.target.annotationItem.toGeoJSONFeature() });
+      }
+      item.onMouseLeave = event => {
+        setProps({ "curShapeObject": null });
+        hoveredItemRef.current = null;
+        executeBoundEvents({ event: 'mouseLeave' }, { item: event.target.annotationItem.toGeoJSONFeature() });
+      }
+
     }
   }
 
@@ -193,20 +219,16 @@ const DashPaperdragon = (props) => {
       return; // can't edit when you're already creating an item
     }
 
-    if (!opts.item) {
-      return;
-    }
-
     if(editingRef.current){
-      editingRef.current = null;
-      opts.item.selected = false;
+      editingRef.current.selected = false;
       paperRef.current.rectangleTool.deactivate();
-      const bounds = opts.item.bounds;
+      const bounds = editingRef.current.bounds;
       raiseEvent('item-edited', {
         point: { x: bounds.x, y: bounds.y },
         size: { width: bounds.width, height: bounds.height }
       });
-    } else {
+      editingRef.current = null;
+    } else if (opts.item) {
       editingRef.current = opts.item;
       opts.item.selected = true;
       paperRef.current.rectangleTool.activate();
@@ -228,6 +250,10 @@ const DashPaperdragon = (props) => {
         console.log('Rectangle aborted');
       } else {
         item.selected = false;
+
+        //To export the item as geojson
+        //item.toGeoJSONFeature();
+
         console.log('Item created', item);
         // makeItem(config.defaultStyle);
         const bounds = item.bounds;
@@ -301,7 +327,7 @@ const DashPaperdragon = (props) => {
   }
 
   function dashCallback(action, data) {
-    console.log('dashCallback', action, data);
+    // console.log('dashCallback', action, data);
     setProps({ outputFromPaper: { callback: action.callback, data: data } });
   }
 
@@ -346,19 +372,7 @@ const DashPaperdragon = (props) => {
     viewerRef.current.world.addHandler('add-item', async event => {
       const src = event.item.source.tilesUrl || await event.item.source.getTileUrl(0, 0, 0);
       console.log('Opened', src, event);
-      if (typeof src === 'string') {
-        const match = src.match(/(.*api\/+v1)\/+item\/+(.*?)\//i);
-        if (match) {
-          const base = match[1];
-          const itemId = match[2];
-          fetch(`${base}/annotation/item/${itemId}`).then(d => d.json()).then(d => {
-            console.log(`Got annotations for ${itemId}:`, d);
-            for (const annotation of d) {
-              tk.addFeatureCollections(DSAAdapter.dsaToGeoJson(annotation), false, event.item);
-            }
-          })
-        }
-      }
+      //Removed auto loading of image annotation loading
     })
 
     const overlay = overlayRef.current = tk.overlay;
@@ -482,6 +496,7 @@ const DashPaperdragon = (props) => {
 
     // add mouseEnter and mouseLeave handlers
     item.onMouseEnter = event => {
+      console.log(event)
       console.log(`Item is ${event.target.data.fillColor}`);
       setProps({ "curShapeObject": event.target.data });
       hoveredItemRef.current = event.target.data;
@@ -622,4 +637,17 @@ export default DashPaperdragon;
 // if (rowIndex !== -1) {
 //   // Update the row at the found index with the desired changes
 //   data[rowIndex].columnName = newValue;
+// }
+// if (typeof src === 'string') {
+//   const match = src.match(/(.*api\/+v1)\/+item\/+(.*?)\//i);
+//   if (match) {
+//     const base = match[1];
+//     const itemId = match[2];
+//     fetch(`${base}/annotation/item/${itemId}`).then(d => d.json()).then(d => {
+//       console.log(`Got annotations for ${itemId}:`, d);
+//       for (const annotation of d) {
+//         //   tk.addFeatureCollections(DSAAdapter.dsaToGeoJson(annotation), false, event.item);
+//       }
+//     })
+//   }
 // }
