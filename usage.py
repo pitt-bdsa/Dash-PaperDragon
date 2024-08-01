@@ -16,6 +16,8 @@ import dash_bootstrap_components as dbc
 import json, random
 import dash_ag_grid
 from pprint import pprint
+import dashPaperDragonHelpers as hlprs
+import requests
 
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -45,6 +47,7 @@ def getId():
 # cyclePropReverse (property)
 # deleteItem
 # newItem
+# editItem
 # dashCallback (callback)
 
 # supported callback functions:
@@ -53,14 +56,14 @@ def getId():
 
 tileSources = [
     {
-        "label": "TCGA-2J-AAB4",
-        "value": 0,
-        "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
-    },
-    {
         "label": "TCGA-BF-A1Q0-01A-02-TSB",
         "value": 0,
         "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f10a8e62914002e956509/tiles/dzi.dzi",
+    },
+    {
+        "label": "TCGA-2J-AAB4",
+        "value": 0,
+        "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
     },
     {
         "label": "TCGA-2J-AAB4-01Z-00-DX1",
@@ -154,6 +157,7 @@ config = {
         },
         {"event": "keyDown", "key": "d", "action": "deleteItem"},
         {"event": "keyDown", "key": "n", "action": "newItem", "tool": "rectangle"},
+        {"event": "keyDown", "key": "e", "action": "editItem", "tool": "rectangle"},
         {"event": "mouseEnter", "action": "dashCallback", "callback": "mouseEnter"},
         {"event": "mouseLeave", "action": "dashCallback", "callback": "mouseLeave"},
     ],
@@ -161,6 +165,7 @@ config = {
         {"eventName": "item-created", "callback": "createItem"},
         {"eventName": "property-changed", "callback": "propertyChanged"},
         {"eventName": "item-deleted", "callback": "itemDeleted"},
+        {"eventName": "item-edited", "callback": "itemEdited"},
     ],
     "properties": {"class": classes},
     "defaultStyle": {
@@ -188,6 +193,11 @@ def cbItemDeleted(args):
     print("Item Deleted")
     return itemDeleted(args)
 
+def cbItemEdited(args):
+    print(args)
+    print("Item Edited")
+    return itemEdited(args)
+
 
 def cbMouseEnter(args):
     return mouseEnter(args)
@@ -203,6 +213,7 @@ def cbPropertyChanged(args):
 
 callbacks = {
     "createItem": cbCreateItem,
+    "itemEdited": cbItemEdited,
     "itemDeleted": cbItemDeleted,
     "mouseEnter": cbMouseEnter,
     "mouseLeave": cbMouseLeave,
@@ -210,63 +221,42 @@ callbacks = {
 }
 
 
-def convertPaperInstructions_toTableForm(data):
-
-    # args = data["args"][0]
-    # Flatten the data
-    args = data.get("args", [])
-    if args:
-        args = args[0]
-
-    # print(data, "was received")
-
-    ### The path is different for rectangles..
-    if data["paperType"] == "Path.Rectangle":
-
-        # Flatten the data
-        flattened_data = {
-            "objectId": data["userdata"]["objectId"],
-            "fillOpacity": args["fillOpacity"],
-            "fillColor": args["fillColor"],
-            "class": data["userdata"]["class"],
-            "strokeColor": args["strokeColor"],
-            "rotation": args.get(
-                "rotation"
-            ),  # Use .get() to avoid KeyError if 'rotation' is not present
-            "x": args["point"]["x"],
-            "y": args["point"]["y"],
-            "width": args["size"]["width"],
-            "height": args["size"]["height"],
-            "type": "Rectangle",
-        }
-        return flattened_data
-    elif data["paperType"] == "Path":
-        flattened_data = {
-            "objectId": data["userdata"]["objectId"],
-            "fillOpacity": args["fillOpacity"],
-            "fillColor": args["fillColor"],
-            "class": data["userdata"]["class"],
-            "strokeColor": args["strokeColor"],
-            "rotation": args.get("rotation"),
-        }
-        return flattened_data
-        # Use .get() to av
-    ## TO DO: process segments
-
-
-paperJsShapeColumns = [
-    {"field": "objectId", "headerName": "objId", "width": 80, "sortable": True},
+geoJsonShapeColumns = [
+    {"field": "userdata.objId", "headerName": "objId", "width": 80, "sortable": True},
+    {"field": "userdata.class", "width": 80},
     {"field": "type", "headerName": "Type", "width": 120},
-    {"field": "fillOpacity", "headerName": "fill %", "width": 80},
-    {"field": "fillColor", "width": 100},
-    {"field": "class", "width": 80},
-    {"field": "strokeColor"},
+    {"field": "properties.fillOpacity", "headerName": "fill %", "width": 80},
+    {"field": "properties.strokeColor"},
+    {"field": "properties.fillColor", "width": 100},
     {"field": "rotation"},
-    {"field": "x"},
-    {"field": "y"},
-    {"field": "width"},
-    {"field": "height"},
 ]
+
+
+annotationTableCols = [
+    {"field": "annotation.name"},
+    {"field": "_version"},
+    {"field": "updated"},
+    {"field": "_id"},
+]
+
+dsaAnnotation_table = dash_ag_grid.AgGrid(
+    id="annotationTable",
+    columnDefs=annotationTableCols,
+    columnSizeOptions={"defaultMaxWidth": 200},
+    # columnSize="sizeToFit",
+    defaultColDef={
+        "resizable": True,
+        "sortable": True,
+        "defaultMaxWidth": 150,
+    },
+    dashGridOptions={
+        "pagination": True,
+        "paginationAutoPageSize": True,
+        "rowSelection": "single",
+    },
+    style={"height": "300px"},
+)
+
 
 ## Create element
 osdElement = dash_paperdragon.DashPaperdragon(
@@ -279,7 +269,6 @@ osdElement = dash_paperdragon.DashPaperdragon(
     inputToPaper=None,
     outputFromPaper=None,
     viewerWidth=800,
-    # curShapeObject=[],
 )
 
 ## Make HTML layout
@@ -377,7 +366,7 @@ coordinate_display = html.Div(
                             html.H5("Shape Table", className="card-title text-center"),
                             dash_ag_grid.AgGrid(
                                 id="shapeDataTable",
-                                columnDefs=paperJsShapeColumns,
+                                columnDefs=geoJsonShapeColumns,
                                 columnSizeOptions={"defaultMaxWidth": 200},
                                 # columnSize="sizeToFit",
                                 defaultColDef={
@@ -397,11 +386,32 @@ coordinate_display = html.Div(
                     )
                 ],
                 className="img-control-card",
+                style={"height": "300px"},
+            )
+        ),
+        dbc.Row(
+            dbc.Card(
+                [
+                    dbc.CardBody(
+                        [
+                            html.H5(
+                                "Annotation Table", className="card-title text-center"
+                            ),
+                            dsaAnnotation_table,
+                        ],
+                        style={
+                            "margin": "0px",
+                            "padding": "0px",
+                            "margin-bottom": "10px",
+                        },
+                    )
+                ],
+                className="img-control-card",
                 style={"height": "100px"},
             )
         ),
     ],
-    className="no-right-margin g-0",
+    className=" g-0",
     # style={"display": "flex", "flex-direction": "row"},
 )
 
@@ -454,7 +464,6 @@ app.layout = dbc.Container(
     fluid=True,
 )
 ## End of layout
-
 ### OutputFromPaper needs to be cleared as well once the message/state has been acknowledged
 
 
@@ -468,34 +477,47 @@ app.layout = dbc.Container(
     State("osdViewerComponent", "viewportBounds"),
     State("osdShapeData_store", "data"),
     State("clearItems-toggle", "value"),
+    Input("annotationTable", "selectedRows"),
     prevent_initial_call=True,
 )
 def handleOutputFromPaper(
-    paperOutput, make_random_boxesClicked, viewPortBounds, currentShapeData, clearItems
+    paperOutput,
+    make_random_boxesClicked,
+    viewPortBounds,
+    currentShapeData,
+    clearItems,
+    selectedAnnotation,
 ):
     ### Need to determine which input triggered the callback
 
     ctx = callback_context
-    # print(paperOutput, "is the paperOutput")
-    # print(ctx.triggered_id, ctx.triggered_prop_ids)
 
     if not ctx.triggered:
         return no_update, no_update, {}
 
     triggered_prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    # print(prop_id, "is the triggered context")
     ## if the osdViewerComponent is the trigger then we need to process the outputFromPaper
-    if triggered_prop_id == "osdViewerComponent":
-        ### {'data': {'event': 'mouseLeave', 'action': 'dashCallback', 'callback': 'mouseLeave'}}  mouseEnter has a difefrent structure..
 
+    ## Process the annotation table selection and pull the annotation and then push
+    ## it to the paperdragon, also need to convert the DSA format
+    if triggered_prop_id == "annotationTable":
+        shapesToAdd = annotationToGeoJson(selectedAnnotation[0])
+
+        inputToPaper = {"actions": []}
+
+        # If I don't clear items, I also need to update the shapesToAdd
+        if clearItems:
+            inputToPaper["actions"].append({"type": "clearItems"})
+        inputToPaper["actions"].append({"type": "drawItems", "itemList": shapesToAdd})
+        # print(shapesToAdd)
+        return inputToPaper, shapesToAdd, {}
+
+    if triggered_prop_id == "osdViewerComponent":
         osdEventType = paperOutput.get("data", {}).get("callback", None)
-        # print(osdEventType, "is the osdEventType")
         if not osdEventType:
             osdEventType = paperOutput.get("callback", None)
 
         if osdEventType in ["mouseLeave", "mouseEnter"]:
-            # print("MOUSE ENTER TRIGGERED")
-            # print(paperOutput)  # curObject_disp
             return no_update, no_update, {}
         elif osdEventType == "createItem":
             # print(paperOutput["data"])
@@ -506,7 +528,7 @@ def handleOutputFromPaper(
                 paperOutput["data"]["size"]["width"],
                 paperOutput["data"]["size"]["height"],
                 colors[0],
-                {"class": classes[0]},
+                {"class": classes[0], "objId": getId()},
             )
             currentShapeData.append(si)
 
@@ -562,14 +584,10 @@ def handleOutputFromPaper(
 
         else:
             ## Add new items to paper, and also update the local array store
-            # print(currentShapeData)
-            # print(type(currentShapeData))
             inputToPaper["actions"].append(
                 {"type": "drawItems", "itemList": shapesToAdd}
             )
-            # print("Trying to concatenate the old and new data... hmm")
             currentShapeData = currentShapeData + shapesToAdd
-
             return inputToPaper, currentShapeData, {}
 
     else:
@@ -578,43 +596,36 @@ def handleOutputFromPaper(
     return no_update, no_update, {}
 
 
+#     return command
 def get_box_instructions(x, y, w, h, color, userdata={}):
-    props = config.get("defaultStyle") | {
-        "point": {"x": x, "y": y},
-        "size": {"width": w, "height": h},
-        "fillColor": color,
-        "strokeColor": color,
-    }
-    userdata["objectId"] = getId()
-    command = {"paperType": "Path.Rectangle", "args": [props], "userdata": userdata}
-
-    return command
-
-
-def generate_paperjs_polygon(shapeInfo):
-    jsPolygon = [
-        {
-            "paperType": "Path",
-            "args": [
-                {
-                    "fillColor": "red",
-                    "strokeColor": "red",
-                    "rescale": {"strokeWidth": 1},
-                    "fillOpacity": 0.2,
-                    "segments": [
-                        {"x": 7849, "y": 19637},
-                        {"x": 8823, "y": 20637},
-                        {"x": 7849, "y": 21637},
-                    ],
-                    "closed": True,
-                }
-            ],
-            "userdata": {"class": "a", "objectId": 40},
-        },
-        # Other shapes...
+    # Define the coordinates of the rectangle (polygon in GeoJSON)
+    coordinates = [
+        [x, y],  # Bottom left corner
+        [x + w, y],  # Bottom right corner
+        [x + w, y + h],  # Top right corner
+        [x, y + h],  # Top left corner
+        [x, y],  # Back to bottom left corner to close the polygon
     ]
 
-    return jsPolygon
+    # Create the GeoJSON object
+    geojson = {
+        "type": "Feature",
+        "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [[coordinates]],
+        },
+        "properties": {
+            "fillColor": color,
+            "strokeColor": color,
+            "userdata": userdata,
+            "fillOpacity": 0.1,
+            "strokeWidth": 2,
+            "rescale": {"strokeWidth": 2},
+        },
+        "userdata": userdata,
+    }
+
+    return geojson
 
 
 def generate_random_boxes(num_points, bounds):
@@ -628,7 +639,7 @@ def generate_random_boxes(num_points, bounds):
     for idx, _ in enumerate(range(num_points)):
         className, color = random.choice(list(zip(classes, colors)))
         # color = random.choice(colors)
-        userdata = {"class": className}
+        userdata = {"class": className, "objId": getId()}
 
         bx = random.randint(x, x + w)
         by = random.randint(y, y + h)
@@ -641,15 +652,52 @@ def generate_random_boxes(num_points, bounds):
     return out
 
 
-## This call back will get fairly complicated as it not only handled objects created in python
-## but also objects created in the paperjs side
-# @callback(
-#     Output("osdViewerComponent", "inputToPaper"), Input("osdShapeData_store", "data")
-# )
-# def update_osdShapeData_store(data):
-#     ## This may not always update openseadragon depending on what changes occurred
+@callback(
+    Output("annotationTable", "rowData"),
+    Input("imageSelect", "value"),
+)
+def populate_dsa_annotation_table(imageSelect):
+    imgTileSources = tileSourceDict[imageSelect]
 
-#     return data
+    if isinstance(imgTileSources, list):
+        imgTileSource = imgTileSources[0]
+    else:
+        imgTileSource = imgTileSources
+
+    ## Now see if it is a dict
+    if isinstance(imgTileSource, dict):
+        imgTileSource = imgTileSource["tileSource"]
+
+    tsParts = imgTileSource.split("/item/")
+    apiUrl = tsParts[0]
+    itemId = tsParts[1].split("/")[0]
+
+    annotationUrl = f"{apiUrl}/annotation?itemId={itemId}"
+
+    r = requests.get(annotationUrl)
+
+    annotationData = r.json()
+    for a in annotationData:
+        a["apiUrl"] = apiUrl
+
+    return annotationData
+
+
+### This will pull the annotations from the DSA for the given item, I am going to focus on
+### the first item tilesources
+
+
+def annotationToGeoJson(annotation):
+    # print("Processing Annotation")
+
+    r = requests.get(f"{annotation['apiUrl']}/annotation/{annotation['_id']}")
+
+    if r:
+        dsaAnnot = r.json()
+        geoJsonBlob = hlprs.dsa_to_geo_json(dsaAnnot)
+        # print()
+        return geoJsonBlob
+    return
 
 
 ## This updates the mouse tracker
@@ -688,107 +736,21 @@ def generateImgSrcControlPanel(tileSource, idx):
     if isinstance(tileSource, str):
         tileSource = {"tileSource": tileSource, "x": 0, "y": 0, "opacity": 1}
 
-    return html.Div(
-        [
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    html.Div(
-                                        [
-                                            html.Div(
-                                                f"Layer {idx} ",
-                                                className="small",
-                                            ),
-                                        ],
-                                        className="mr-4 align-items-center",
-                                        style={"paddingTop": "10px"},
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Label("X Offset"),
-                                            dcc.Input(
-                                                id={"type": "x", "index": idx},
-                                                type="number",
-                                                value=tileSource.get("x", 0),
-                                                style={"width": "70px"},
-                                            ),
-                                        ],
-                                        className="mr-3",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Label("Y Offset"),
-                                            dcc.Input(
-                                                id={"type": "y", "index": idx},
-                                                type="number",
-                                                value=tileSource.get("y", 0),
-                                                style={"width": "70px"},
-                                            ),
-                                        ],
-                                        className="mr-3",
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Label("Opacity"),
-                                            dcc.Slider(
-                                                id={"type": "opacity", "index": idx},
-                                                # type="range",
-                                                min=0,
-                                                max=1,
-                                                step=0.05,
-                                                marks={
-                                                    0: "0",
-                                                    0.5: "0.5",
-                                                    1: "1",
-                                                },
-                                                value=tileSource.get("opacity", 1),
-                                                className="slider",
-                                            ),
-                                        ],
-                                        className="mr-3",
-                                        style={"textAlign": "center"},
-                                    ),
-                                    html.Div(
-                                        [
-                                            html.Label("Rotation"),
-                                            dcc.Input(
-                                                id={"type": "rotation", "index": idx},
-                                                type="number",
-                                                value=tileSource.get("rotation", 0),
-                                                style={"width": "70px"},
-                                            ),
-                                        ],
-                                        className="mr-3",
-                                    ),
-                                ],
-                                className="d-flex",
-                            ),
-                        ],
-                        className="mr-3",
-                    ),
-                ],
-                className="d-flex",
-            ),
-        ],
-        className="mb-4",
-    )
+    return hlprs.create_layer_div(idx, tileSource)
 
 
 # osdShapeData
 @callback(Output("shapeDataTable", "rowData"), Input("osdShapeData_store", "data"))
 def updateShapeDataTable(shapeData):
-    ### The structure of the data stats with
-    ##  array of actions
+    ### The structure of the data stats with array of actions
     ## Then need to parse the actions to get the itemList
     if not shapeData:
         return []
 
     flattened_data = []
     for shp in shapeData:
-        flattened_data.append(convertPaperInstructions_toTableForm(shp))
+        # flattened_data.append(hlprs.convertPaperInstructions_toTableForm(shp))
+        flattened_data.append(shp)
     return flattened_data
 
 
@@ -849,7 +811,6 @@ def process_tileSource_changes(x, y, opacity, rotation):
 
     ## This controls whether the text version for transformed array is displayed on the screen
     # print(transformed_array)
-    # return json.dumps(transformed_array), transformed_array
     return no_update, transformed_array
 
 
@@ -857,11 +818,12 @@ def process_tileSource_changes(x, y, opacity, rotation):
     Output("curObject_disp", "children"), Input("osdViewerComponent", "curShapeObject")
 )
 def update_curShapeObject(curShapeObject):
+
+    print(curShapeObject, "is current shape detected..")
     if curShapeObject:
-        return json.dumps(curShapeObject.get("userdata", {}))
+        return json.dumps(curShapeObject.get("properties", {}).get("userdata", {}))
     else:
         return no_update
-    # return f"Current Selected Shape: {json.dumps(curShapeObject)}"
 
 
 @callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
@@ -872,18 +834,16 @@ def update_imageSrc(tileSourceIdx):
 
 def createItem(data):
     # cprint("createItem", data)
-    # print("Some how called this?")
     x = get_box_instructions(
         data["point"]["x"],
         data["point"]["y"],
         data["size"]["width"],
         data["size"]["height"],
         colors[0],
-        {"class": classes[0]},
+        {"class": classes[0], "objId": getId()},
     )
     out = {"actions": [{"type": "drawItems", "itemList": [x]}]}
     return out
-    # return out
 
 
 # this is if you want to trigger deleting and item from the python side
@@ -897,65 +857,26 @@ def itemDeleted(data):
     print("itemDeleted", data)
     return None
 
+# this listens to an edited event triggered from the client side
+def itemEdited(data):
+    print('itemEdited', data)
+    return None
 
+# this listens to a property changed event triggered from the client side
 def propertyChanged(data):
     print("propertyChanged", data)
     return None
 
 
 def mouseLeave(args):
+    print("Mouse Leave", args)
     return None
 
 
 def mouseEnter(args):
-    # print(args)
+    print(args)
     return None
 
 
 if __name__ == "__main__":
     app.run_server(debug=True)
-
-
-# Create a callback to update the opacity property when the slider value changes
-# @app.callback(
-#     [Output({'type': 'slider', 'index': i}, 'value') for i in range(len(data))],
-#     [Input({'type': 'slider', 'index': i}, 'value') for i in range(len(data))]
-# )
-# def update_opacity(*slider_values):
-#     print(slider_values)
-#     return slider_values
-
-
-# inputToPaper = {}  ## this will be an array of commands to send to paper if needed
-
-# if paperOutput is None:
-#     paperOutput = {}
-
-# callback = callbacks.get(paperOutput.get("callback"))
-
-# if callback and paperOutput.get("callback"):
-#     inputToPaper = callback(paperOutput.get("data"))
-#     ### Not sure if I need to append this..
-#     ## If action type is drawItems than I need to append to the currentShapeData
-#     if inputToPaper.get("actions")[0].get("type") == "drawItems":
-#         currentShapeData.append(inputToPaper["actions"][0]["itemList"])
-#         # print("CSD-->", currentShapeData)
-#         return inputToPaper, currentShapeData
-#         # inputToShapreDataStore = currentShapeData
-
-#     # currentShapeData.append()
-
-# if make_random_boxesClicked and not paperOutput.get("callback"):
-#     # bounds = paperOutput.get("viewportBounds")
-#     shapesToAdd = generate_random_boxes(3, viewPortBounds)
-
-#     # shapesToAdd = generate_paperjs_polygon("tbd")
-#     # print(shapesToAdd)
-
-#     # print(shapesToAdd)
-#     return inputToPaper, shapesToAdd
-
-# ### Need to interrogate the inputToPaper object and see if I need to update the data store
-
-# # print("ITP", inputToPaper, "PO:", paperOutput)
-# return inputToPaper, no_update

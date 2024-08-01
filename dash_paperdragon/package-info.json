@@ -1,6 +1,6 @@
 {
   "name": "dash_paperdragon",
-  "version": "0.0.9",
+  "version": "0.0.92",
   "description": "OpenSeaDragon and PaperJS component for Dash and the DSA",
   "repository": {
     "type": "git",
@@ -24,6 +24,7 @@
   "author": "David Gutman <dagutman@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "install": "^0.13.0",
     "openseadragon": "^4.1.0",
     "osd-paperjs-annotation": "github:pearcetm/osd-paperjs-annotation",
     "ramda": "^0.26.1"

@@ -281,3 +281,4 @@ Manifest.toml
 JuliaManifest.toml
 dash_paperdragon/dash_paperdragon.min.js.map
 dash_paperdragon/dash_paperdragon.min.js
+.DS_Store
