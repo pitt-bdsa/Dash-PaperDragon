@@ -5,14 +5,16 @@ from dash.development.base_component import Component, _explicitize_args
 
 class DashPaperdragon(Component):
     """A DashPaperdragon component.
-
+OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer
 
 Keyword arguments:
 
 - id (string; optional):
     The ID used to identify this component in Dash callbacks.
 
-- baseImageWidth (number; optional)
+- baseImageWidth (number; optional):
+    This is the width of the base image, which is the first image in
+    the tileSources array.
 
 - config (dict; optional):
     config is a dictionary of options for setting up the component and
@@ -21,7 +23,8 @@ Keyword arguments:
 - curMousePosition (dict; optional):
     Current Mouse Position in Image Coordinates.
 
-- curShapeObject (dict; optional)
+- curShapeObject (dict; optional):
+    This is the last shape object that was hovered over.
 
 - inputToPaper (dict; optional):
     data sent from dash to paper.
@@ -36,9 +39,11 @@ Keyword arguments:
 - tileSources (string | list; optional):
     the tile source for openseadragon.
 
-- viewerHeight (number; optional)
+- viewerHeight (number; optional):
+    The height of the viewer in pixels.
 
-- viewerWidth (number; optional)
+- viewerWidth (number; optional):
+    The width of the viewer in pixels.
 
 - viewportBounds (dict; optional):
     viewportBounds of the current OSD Viewer.

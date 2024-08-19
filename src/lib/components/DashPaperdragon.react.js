@@ -4,7 +4,9 @@ import OpenSeadragon from 'openseadragon';
 import { AnnotationToolkit, RectangleTool } from 'osd-paperjs-annotation';
 import { DSAAdapter } from './dsaGeoJsonAdapter';
 
-/* OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer */
+/**
+*  OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer
+*/
 const DashPaperdragon = (props) => {
   const { id, // id of the div element created for this viewer
     config, // configuration options for the component
@@ -34,6 +36,9 @@ const DashPaperdragon = (props) => {
   const keyDownRef = useRef(null);
   const creatingRef = useRef(null);
   const editingRef = useRef(null);
+  const viewerIsOpening = useRef(null);  //To deal with issue of annotation and image being passed at same time,
+  //But image is not yet loaded
+
 
   /** Define actions */
   const actionsRef = useRef({
@@ -52,6 +57,25 @@ const DashPaperdragon = (props) => {
   function raiseEvent(eventName, data) {
     executeCallbacks(eventName, data);
   }
+
+
+
+  /** Open an image based on imageSrc property */
+  useEffect(() => {
+    if (viewerRef.current && tileSources) {
+      // Update the image source
+      viewerRef.current.open(tileSources);
+      viewerIsOpening.current = true;
+      viewerRef.current.addOnceHandler('open', () => {
+        const cachedInputToPaper = viewerIsOpening.current;
+
+        viewerIsOpening.current = false;
+        handleInputToPaper(cachedInputToPaper);
+
+      });
+
+    }
+  }, [tileSources]);
 
 
   /** Create viewer within a useEffect */
@@ -74,6 +98,27 @@ const DashPaperdragon = (props) => {
   }, []);
 
 
+  // CHECK LOGIC WITH DR PEARCE...
+  // /** Create viewer within a useEffect */
+  // useEffect(() => {
+  //   if (!viewerRef.current && tileSources) {
+  //     createViewer();
+  //   }
+  //   // Clean up the viewer when the component unmounts
+  //   return () => {
+  //     if (viewerRef.current) {
+
+  //       // if (tiledImageRef.paperLayer) tiledImageRef.paperLayout.remove();
+
+  //       viewerRef.current.destroy();
+  //       viewerRef.current = null;
+  //       tiledImageRef.current = null;
+
+  //     }
+  //   };
+  // }, []);
+
+
   useEffect(() => {
     const viewer = viewerRef.current;
     // console.log(tileSourceProps, "are being updated")
@@ -90,6 +135,18 @@ const DashPaperdragon = (props) => {
           curTileSource.setOpacity(tileSourceProps[i].opacity);
           curTileSource.setPosition({ x: tileSourceProps[i].x, y: tileSourceProps[i].y })
           curTileSource.setRotation(tileSourceProps[i].rotation);
+
+          //adjust flip property here if set and adjust imageWidth if updated
+
+          //OpenSeadragon.TiledImage
+          //           setWidth(width, immediatelyopt)
+          // Sets the TiledImage's width in the world, adjusting the height to match based on aspect ratio.
+          // Parameters:
+          // Name	Type	Attributes	Default	Description
+          // width	Number			The new width, in viewport coordinates.
+          // immediately	Boolean	<optional>
+          // false	W //setFlip
+
         }
       }
       //Iterate through the tilesources and change the opacity
@@ -140,7 +197,7 @@ const DashPaperdragon = (props) => {
   function drawGeoJsonFeatureSet(action) {
     const list = action.itemList || [];
     if (!list.length) {
-      console.warning('No items were provided in the itemList property');
+      console.warn('No items were provided in the itemList property');
     }
 
 
@@ -149,7 +206,7 @@ const DashPaperdragon = (props) => {
   function drawDsaAnnotations(action) {
     const list = action.itemList || [];
     if (!list.length) {
-      console.warning('No items were provided in the itemList property');
+      console.warn('No items were provided in the itemList property');
     }
 
     for (const dsa of list) {
@@ -165,10 +222,11 @@ const DashPaperdragon = (props) => {
   function drawItems(action) {
     const list = action.itemList || [];
     if (!list.length) {
-      console.warning('No items were provided in the itemList property');
+      console.warn('No items were provided in the itemList property');
     }
     for (const i of list) {
       // We now expect all of the objects to be in geojson format
+      console.log(i, "is format I want");
       let item = paperRef.current.Item.fromGeoJSON(i);
 
       tiledImageRef.current.addPaperItem(item);
@@ -199,7 +257,7 @@ const DashPaperdragon = (props) => {
 
   function deleteItem(opts) {
 
-    raiseEvent('item-deleted', { item: opts.item });
+    raiseEvent('item-deleted', { item: opts.item.annotationItem._paperItem, userdata: opts.item.annotationItem.userdata }); //, props: opts.item.annotationItem._paperItem._props});
     // console.log(opts)
     if (opts.item) {
       opts.item.remove();
@@ -215,17 +273,20 @@ const DashPaperdragon = (props) => {
 
   function editItem(opts) {
 
-    if(creatingRef.current){
+    if (creatingRef.current) {
       return; // can't edit when you're already creating an item
     }
 
-    if(editingRef.current){
+    if (editingRef.current) {
       editingRef.current.selected = false;
       paperRef.current.rectangleTool.deactivate();
       const bounds = editingRef.current.bounds;
       raiseEvent('item-edited', {
         point: { x: bounds.x, y: bounds.y },
-        size: { width: bounds.width, height: bounds.height }
+        size: { width: bounds.width, height: bounds.height },
+        userdata: editingRef.current.annotationItem.userdata,
+        origRef: editingRef.current
+
       });
       editingRef.current = null;
     } else if (opts.item) {
@@ -237,7 +298,7 @@ const DashPaperdragon = (props) => {
   }
 
   function newItem(opts) {
-    if(editingRef.current){
+    if (editingRef.current) {
       return; // can't start a new item when you're editing one already
     }
 
@@ -316,7 +377,14 @@ const DashPaperdragon = (props) => {
     if (item.fillColor) {
       item.fillColor.alpha = item.fillOpacity;
     }
-    item.applyRescale();
+
+    // Check if item is not undefined before calling applyRescale 
+    if (item && typeof item.applyRescale === 'function') {
+      item.applyRescale();
+    } else {
+      console.error('Item is undefined or does not have an applyRescale method');
+      return;
+    }
 
     raiseEvent('property-changed', { item: item.data.userdata, property: prop });
 
@@ -459,7 +527,7 @@ const DashPaperdragon = (props) => {
 
   function badAction(a) {
     alert('Bad action, see console');
-    console.warning('Bad action:', a);
+    console.warn('Bad action:', a);
   }
 
 
@@ -496,8 +564,8 @@ const DashPaperdragon = (props) => {
 
     // add mouseEnter and mouseLeave handlers
     item.onMouseEnter = event => {
-      console.log(event)
-      console.log(`Item is ${event.target.data.fillColor}`);
+      //console.log(event)
+      //console.log(`Item is ${event.target.data.fillColor}`);
       setProps({ "curShapeObject": event.target.data });
       hoveredItemRef.current = event.target.data;
       executeBoundEvents({ event: 'mouseEnter' }, { item: event.target.data });
@@ -596,15 +664,23 @@ DashPaperdragon.propTypes = {
   /**
    * sent from dash to update x offset, y offset, rotation, or opacity of the image
    */
-
   tileSourceProps: PropTypes.array,
-  /* This is the width of the base image, which is the first image in the tileSources array */
+  /**  
+  * This is the width of the base image, which is the first image in the tileSources array 
+  */
   baseImageWidth: PropTypes.number,
-
+  /**
+  *  The width of the viewer in pixels
+  */
   viewerWidth: PropTypes.number,
+  /**
+  *  The height of the viewer in pixels
+  */
   viewerHeight: PropTypes.number,
 
-  /* This is the last shape object that was hovered over */
+  /**
+   *  This is the last shape object that was hovered over 
+   */
   curShapeObject: PropTypes.object,
   /**
    * Dash-assigned callback that should be called to report property changes
@@ -612,7 +688,9 @@ DashPaperdragon.propTypes = {
    */
   setProps: PropTypes.func
 };
-
+/**
+ * This is the default Paperdragon class that is exported
+ */
 export default DashPaperdragon;
 
 

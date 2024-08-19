@@ -53,21 +53,111 @@ def getId():
 # supported callback functions:
 # createItem
 
+sampleShapes = [
+    {
+        "type": "Feature",
+        "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [52981, 17715],
+                        [54154, 17715],
+                        [54154, 18308],
+                        [52981, 18308],
+                        [52981, 17715],
+                    ]
+                ]
+            ],
+        },
+        "properties": {
+            "fillColor": "green",
+            "strokeColor": "green",
+            "userdata": {"class": "d", "objId": 1},
+            "fillOpacity": 0.1,
+            "strokeWidth": 2,
+            "rescale": {"strokeWidth": 2},
+        },
+        "userdata": {"class": "d", "objId": 1},
+    },
+    {
+        "type": "Feature",
+        "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [45677, 13048],
+                        [46572, 13048],
+                        [46572, 13345],
+                        [45677, 13345],
+                        [45677, 13048],
+                    ]
+                ]
+            ],
+        },
+        "properties": {
+            "fillColor": "red",
+            "strokeColor": "red",
+            "userdata": {"class": "a", "objId": 2},
+            "fillOpacity": 0.1,
+            "strokeWidth": 2,
+            "rescale": {"strokeWidth": 2},
+        },
+        "userdata": {"class": "a", "objId": 2},
+    },
+    {
+        "type": "Feature",
+        "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [42847, 24844],
+                        [43396, 24844],
+                        [43396, 25140],
+                        [42847, 25140],
+                        [42847, 24844],
+                    ]
+                ]
+            ],
+        },
+        "properties": {
+            "fillColor": "purple",
+            "strokeColor": "purple",
+            "userdata": {"class": "f", "objId": 3},
+            "fillOpacity": 0.1,
+            "strokeWidth": 2,
+            "rescale": {"strokeWidth": 2},
+        },
+        "userdata": {"class": "f", "objId": 3},
+    },
+]
+
+
+demo_inputToPaper = {"actions": [{"type": "drawItems", "itemList": sampleShapes}]}
+
 
 tileSources = [
     {
         "label": "TCGA-BF-A1Q0-01A-02-TSB",
         "value": 0,
+        "_id": "5b9f10a8e62914002e956509",
+        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
         "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f10a8e62914002e956509/tiles/dzi.dzi",
     },
     {
         "label": "TCGA-2J-AAB4",
         "value": 0,
+        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
+        "_id": "5b9f0d63e62914002e9547f0",
         "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
     },
     {
         "label": "TCGA-2J-AAB4-01Z-00-DX1",
         "value": 1,
+        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
+        "_id": "5b9f0d64e62914002e9547f4",
         "tileSources": [
             "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi"
         ],
@@ -75,9 +165,11 @@ tileSources = [
     {
         "label": "Image stack",
         "value": 2,
+        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
         "tileSources": [
             {
                 "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
+                "_id": "5b9f0d64e62914002e9547f4",
                 "x": 0,
                 "y": 0,
                 "opacity": 1,
@@ -85,6 +177,7 @@ tileSources = [
             },
             {
                 "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
+                "_id": "5b9f0d64e62914002e9547f4",
                 "x": 0.2,
                 "y": 0.2,
                 "opacity": 0.2,
@@ -95,9 +188,11 @@ tileSources = [
     {
         "label": "CDG Example",
         "value": 2,
+        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
         "tileSources": [
             {
                 "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
+                "_id": "5b9f0d64e62914002e9547f4",
                 "x": 0,
                 "y": 0,
                 "opacity": 1,
@@ -108,6 +203,7 @@ tileSources = [
     {
         "label": "ISIC Example",
         "value": 3,
+        "apiUrl": "https://wsi-deid.pathology.emory.edu/api/v1",
         "tileSources": [
             {
                 "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e2309a9ffde668be5e/tiles/dzi.dzi"
@@ -144,6 +240,8 @@ tileSources = [
 ]
 
 tileSourceDict = {x["label"]: x["tileSources"] for x in tileSources}
+
+tileSourceDictTwo = {x["label"]: x for x in tileSources}
 
 
 config = {
@@ -184,6 +282,57 @@ config = {
 }
 
 
+imgSrc_control_table = dash_ag_grid.AgGrid(
+    id="imgSrc_table",
+    rowData=[],
+    columnDefs=[
+        {
+            "field": "isVisible",
+            "cellEditor": {"function": "eyeCellRenderer"},
+            "editable": True,
+            "width": 50,
+        },
+        {"field": "_id", "header": "Item ID"},
+        {
+            "field": "opacity",
+            "header": "Opacity",
+            "width": 100,
+            "cellEditor": "agNumberCellEditor",
+            "cellEditorParams": {
+                "min": 0,
+                "max": 1,
+                "precision": 2,
+                "step": 0.01,
+                "showStepperButtons": True,
+            },
+            "editable": True,
+        },
+        {"field": "xOffset", "header": "X Offset", "editable": True},
+        {"field": "yOffset", "header": "Y Offset", "editable": True},
+        {"field": "xOffsetPixels", "header": "X Offset", "editable": True},
+        {"field": "yOffsetPixels", "header": "Y Offset", "editable": True},
+        {"field": "rotation", "header": "Rotation", "editable": True},
+        {"field": "width", "header": "Width", "width": 80},
+        {"field": "height", "header": "Height", "width": 80},
+        {
+            "field": "palette",
+            "headerName": "Color",
+            "cellRenderer": "colorCellRenderer",
+            "width": 100,
+        },
+    ],
+    defaultColDef={
+        "resizable": True,
+        "sortable": True,
+        "filter": True,
+        "columnSize": "autoSize",
+        "maxWidth": 120,
+    },
+    dashGridOptions={"rowHeight": 25},
+    style={"height": "200px"},
+)
+
+
 def cbCreateItem(args):
     return createItem(args)
 
@@ -192,6 +341,7 @@ def cbItemDeleted(args):
     print(args)
     print("Item Deleted")
     return itemDeleted(args)
+
 
 def cbItemEdited(args):
     print(args)
@@ -266,7 +416,7 @@ osdElement = dash_paperdragon.DashPaperdragon(
     zoomLevel=0,
     viewportBounds={"x": 0, "y": 0, "width": 0, "height": 0},
     curMousePosition={"x": 0, "y": 0},
-    inputToPaper=None,
+    inputToPaper=demo_inputToPaper,  ## If I am doing this.. I also need to put it in the shape table
     outputFromPaper=None,
     viewerWidth=800,
 )
@@ -349,9 +499,12 @@ coordinate_display = html.Div(
                 [
                     dbc.CardBody(
                         [
-                            html.H5("Tile Source Properties", className="card-title"),
-                            html.Div(id="osdTileProperties", className="card-text"),
-                            html.Div(id="imgScrControls_data", className="card-text"),
+                            html.H5(
+                                "Tile Source Info", className="card-title text-center"
+                            ),
+                            # html.Div(id="osdTileProperties", className="card-text"),
+                            # html.Div(id="imgScrControls_data", className="card-text"),
+                            imgSrc_control_table,
                         ]
                     )
                 ],
@@ -369,6 +522,7 @@ coordinate_display = html.Div(
                                 columnDefs=geoJsonShapeColumns,
                                 columnSizeOptions={"defaultMaxWidth": 200},
                                 # columnSize="sizeToFit",
+                                rowData=sampleShapes,  ## Only if setting sample shapes above..
                                 defaultColDef={
                                     "resizable": True,
                                     "sortable": True,
@@ -467,6 +621,85 @@ app.layout = dbc.Container(
 ### OutputFromPaper needs to be cleared as well once the message/state has been acknowledged
 
 
+def find_index_by_objId(data, target_objId):
+    for index, item in enumerate(data):
+        if item.get("userdata", {}).get("objId", None) == target_objId:
+            return index
+    return -1  # return -1 if no match is found
+
+
+@callback(Output("imgSrc_table", "rowData"), Input("imageSelect", "value"))
+def update_imgSrc_table(selectedImages):
+    ## An image sorce can consist of one or more tile sources
+    print("Selected Image", selectedImages)
+
+    print(tileSourceDict)
+    #  newTileSources = tileSourceDict.get(tileSourceIdx, None)
+    # imgSrcControls = []
+
+    imgSrc = tileSourceDictTwo[selectedImages]
+
+    ## This deals with the case where just a dict is passed for a single image tilesource
+    if not isinstance(imgSrc, list):
+        imgSrc = [imgSrc]
+
+    imgSources = []
+    for img in imgSrc:
+        print(img, "is the image")
+        img_dict = {
+            "isVisible": True,
+            "opacity": 1,  # 1 if idx < 3 else 0,
+            # "palette": ["#000000", CHANNEL_COLORS[idx % 7]],
+            "_id": img.get("_id", None),
+            "rotation": 0,
+            "width": 1,
+            "height": 1,
+            "yOffset": 0,
+            "xOffset": 0,
+            "xOffsetPixels": 0,
+            "yOffsetPixels": 0,
+        }
+        imgSources.append(img_dict)
+
+    return imgSources
+
+
+@callback(
+    Output("osdViewerComponent", "tileSourceProps"),
+    [Input("imgSrc_table", "cellValueChanged"), State("imgSrc_table", "rowData")],
+    prevent_initial_call=True,
+)
+def update_tilesource_props(_, img_data):
+    # Update the properties of the image.
+    if len(img_data):
+        tilesource_props = []
+        print(img_data)
+        for i, r in enumerate(img_data):
+            tilesource_props.append(
+                {
+                    "index": i,  ## WHY IS THIS ERRORING?
+                    "opacity": r["opacity"] if r["isVisible"] else 0,
+                    "x": r["xOffset"],
+                    "y": r["yOffset"],
+                    "rotation": r["rotation"],
+                }
+            )
+
+        return tilesource_props
+
+    return []
+
+
+### This populates the image selection table when the imageSelect dropwdown is changed
+
+# @callback(
+#     Output("annotationTable", "rowData"),
+#     Input("imageSelect", "value"),
+# )
+# def populate_dsa_annotation_table(imageSelect):
+#     imgTileSources = tileSourceDict[imageSelect]
+
+
 ## NEED TO CLEAR THE MESSAGE ONCE THE EVENT FIRES...
 @callback(
     Output("osdViewerComponent", "inputToPaper", allow_duplicate=True),
@@ -495,7 +728,13 @@ def handleOutputFromPaper(
     if not ctx.triggered:
         return no_update, no_update, {}
 
-    triggered_prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    try:
+        triggered_prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    except:
+        print("Something odd about the context... need better error handling..")
+        print(ctx.triggered)
+        return no_update, no_update, {}
+
     ## if the osdViewerComponent is the trigger then we need to process the outputFromPaper
 
     ## Process the annotation table selection and pull the annotation and then push
@@ -522,6 +761,7 @@ def handleOutputFromPaper(
         elif osdEventType == "createItem":
             # print(paperOutput["data"])
 
+            ## NEED TO MAKE SURE THE OBJECT ID IS SET
             si = get_box_instructions(
                 paperOutput["data"]["point"]["x"],
                 paperOutput["data"]["point"]["y"],
@@ -552,7 +792,7 @@ def handleOutputFromPaper(
                         break
                 return no_update, currentShapeData, {}
         elif osdEventType == "itemDeleted":
-            print(paperOutput["data"]["item"])
+            # print(paperOutput["data"]["item"])
             itemId = paperOutput["data"]["item"][1]["data"]["userdata"]["objectId"]
             print("Item Deleted", itemId)
             currentShapeData = [
@@ -562,10 +802,36 @@ def handleOutputFromPaper(
             ### TO DO-- CLARIFY FROM TOM WHAT THE DELETEITEM callback should return in the react component
 
             ## Note the class is changing, but that also changes the color... will need to think about how to keep all this stuff in sync
+        elif osdEventType == "itemEdited":
+            print("ITEM WAS EDITED")
+            print(paperOutput)
+            ### NEED TO UPDATE THE TABLE WITH THE OBJECT THAT WAS UPDATED...
+            ## WILL ADD A ROTATION PREOPRETY FOR NOW..
+            try:
+                print(currentShapeData[0])
+            except:
+                print(
+                    "Trying to print currentShapeData[0], but it's throwing an error..."
+                )
+                print(currentShapeData, "is what I was trying to iterate on...")
+
+            editedObjId = paperOutput["data"]["userdata"].get("objId", None)
+            ## NEED TO DEAL WITH CASE IF objID is not set on an edited item?  This maybe shouldn't happen though.. TBD...
+            editedObjIdx = find_index_by_objId(currentShapeData, editedObjId)
+            if editedObjIdx == -1:
+                print("Could not find object with objId", editedObjId)
+                return no_update, currentShapeData, {}
+            else:
+                print("Found object at index", editedObjIdx)
+                currentShapeData[editedObjIdx]["rotation"] = "IWASROTATED"
+
+            return no_update, currentShapeData, {}
+
         else:
             print("Unhandled osdEventType", osdEventType)
             print(paperOutput, "is the paperOutput")
 
+            return no_update, no_update, {}
     # {'callback': 'propertyChanged', 'data': {'item': {'class': 'e', 'objectId': 1}, 'property': 'class'}} is the paperOutput
 
     elif triggered_prop_id == "make_random_button":
@@ -573,13 +839,14 @@ def handleOutputFromPaper(
 
         shapesToAdd = generate_random_boxes(3, viewPortBounds)
         inputToPaper = {"actions": []}
-
+        print(shapesToAdd)
         # If I don't clear items, I also need to update the shapesToAdd
         if clearItems:
             inputToPaper["actions"].append({"type": "clearItems"})
             inputToPaper["actions"].append(
                 {"type": "drawItems", "itemList": shapesToAdd}
             )
+
             return inputToPaper, shapesToAdd, {}
 
         else:
@@ -754,64 +1021,65 @@ def updateShapeDataTable(shapeData):
     return flattened_data
 
 
-@callback(Output("osdTileProperties", "children"), Input("imageSelect", "value"))
-def createTileSourceControls(tileSourceIdx):
-    newTileSources = tileSourceDict.get(tileSourceIdx, None)
-    imgSrcControls = []
+# @callback(Output("osdTileProperties", "children"), Input("imageSelect", "value"))
+# def createTileSourceControls(tileSourceIdx):
+#     newTileSources = tileSourceDict.get(tileSourceIdx, None)
+#     imgSrcControls = []
 
-    # Handle cases of both single channel and multi-channel images
-    if isinstance(newTileSources, list):
-        for idx, tileSource in enumerate(newTileSources):
-            imgSrcControls.append(generateImgSrcControlPanel(tileSource, idx))
-    else:
-        imgSrcControls.append(generateImgSrcControlPanel(newTileSources, 0))
+#     # Handle cases of both single channel and multi-channel images
+#     if isinstance(newTileSources, list):
+#         for idx, tileSource in enumerate(newTileSources):
+#             imgSrcControls.append(generateImgSrcControlPanel(tileSource, idx))
+#     else:
+#         imgSrcControls.append(generateImgSrcControlPanel(newTileSources, 0))
 
-    return imgSrcControls
+#     return imgSrcControls
 
 
-# ### Detect changes in xOffset, yOffset, and opacity
-@callback(
-    Output("imgScrControls_data", "children"),
-    Output("osdViewerComponent", "tileSourceProps"),
-    Input({"type": "x", "index": ALL}, "value"),
-    Input({"type": "y", "index": ALL}, "value"),
-    Input({"type": "opacity", "index": ALL}, "value"),
-    Input({"type": "rotation", "index": ALL}, "value"),
-)
-def process_tileSource_changes(x, y, opacity, rotation):
-    ctx = callback_context
-    if not ctx.triggered:
-        return no_update
+# # ### Detect changes in xOffset, yOffset, and opacity
+# @callback(
+#     Output("imgScrControls_data", "children"),
+#     Output("osdViewerComponent", "tileSourceProps"),
+#     Input({"type": "x", "index": ALL}, "value"),
+#     Input({"type": "y", "index": ALL}, "value"),
+#     Input({"type": "opacity", "index": ALL}, "value"),
+#     Input({"type": "rotation", "index": ALL}, "value"),
+# )
+# def process_tileSource_changes(x, y, opacity, rotation):
+#     ctx = callback_context
+#     if not ctx.triggered:
+#         return no_update
 
-    # Transform the complex array to the specified format
-    transformed_array = []
-    indexes = set()
+#     # Transform the complex array to the specified format
+#     transformed_array = []
+#     indexes = set()
 
-    complex_array = ctx.inputs_list
+#     complex_array = ctx.inputs_list
 
-    # First, gather all unique indexes to create a template for the dictionaries
-    for group in complex_array:
-        for item in group:
-            indexes.add(item["id"]["index"])
+#     # First, gather all unique indexes to create a template for the dictionaries
+#     for group in complex_array:
+#         for item in group:
+#             indexes.add(item["id"]["index"])
 
-    # Initialize dictionaries for each index
-    for index in indexes:
-        transformed_array.append({"index": index})
+#     # Initialize dictionaries for each index
+#     for index in indexes:
+#         transformed_array.append({"index": index})
 
-    # Populate the dictionaries with values from the complex array
-    for group in complex_array:
-        for item in group:
-            index = item["id"]["index"]
-            type_ = item["id"]["type"]
-            value = item["value"]
-            # Find the dictionary with the matching index and update it with the new value
-            for dict_ in transformed_array:
-                if dict_["index"] == index:
-                    dict_[type_] = value
+#     # Populate the dictionaries with values from the complex array
+#     for group in complex_array:
+#         for item in group:
+#             index = item["id"]["index"]
+#             type_ = item["id"]["type"]
+#             value = item["value"]
+#             # Find the dictionary with the matching index and update it with the new value
+#             for dict_ in transformed_array:
+#                 if dict_["index"] == index:
+#                     dict_[type_] = value
 
-    ## This controls whether the text version for transformed array is displayed on the screen
-    # print(transformed_array)
-    return no_update, transformed_array
+#     ## This controls whether the text version for transformed array is displayed on the screen
+#     # print(transformed_array)
+#     print(transformed_array)
+#     return no_update, transformed_array
 
 
 @callback(
@@ -857,10 +1125,12 @@ def itemDeleted(data):
     print("itemDeleted", data)
     return None
 
+
 # this listens to an edited event triggered from the client side
 def itemEdited(data):
-    print('itemEdited', data)
+    print("itemEdited", data)
     return None
+
 
 # this listens to a property changed event triggered from the client side
 def propertyChanged(data):
