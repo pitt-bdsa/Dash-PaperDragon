@@ -1,4 +1,6 @@
 import dash_paperdragon
+import math
+
 from dash import (
     Dash,
     callback,
@@ -18,7 +20,9 @@ import dash_ag_grid
 from pprint import pprint
 import dashPaperDragonHelpers as hlprs
 import requests
-
+import sampleTileSources as sts
+import re
+import girder_client  # In theory not necessary, could use requests
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -33,6 +37,35 @@ def getId():
     global globalId
     globalId = globalId + 1
     return globalId
+
+
+def rgb_to_hsi(r, g, b):
+    # Normalize the RGB values to the range [0, 1]
+    r /= 255
+    g /= 255
+    b /= 255
+
+    # Calculate Intensity (I)
+    I = (r + g + b) / 3
+
+    # Calculate Saturation (S)
+    min_rgb = min(r, g, b)
+    S = 1 - (min_rgb / I) if I != 0 else 0
+
+    # Calculate Hue (H)
+    H = 0
+    if S != 0:
+        numerator = 0.5 * ((r - g) + (r - b))
+        denominator = math.sqrt((r - g) * (r - g) + (r - b) * (g - b))
+        H = math.acos(numerator / denominator) if denominator != 0 else 0
+
+        if b > g:
+            H = 2 * math.pi - H
+
+    # Convert Hue to degrees
+    H = H * (180 / math.pi)
+
+    return {"H": H, "S": S, "I": I}
 
 
 # possible bindings for actions:
@@ -53,191 +86,15 @@ def getId():
 # supported callback functions:
 # createItem
 
-sampleShapes = [
-    {
-        "type": "Feature",
-        "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [
-                [
-                    [
-                        [52981, 17715],
-                        [54154, 17715],
-                        [54154, 18308],
-                        [52981, 18308],
-                        [52981, 17715],
-                    ]
-                ]
-            ],
-        },
-        "properties": {
-            "fillColor": "green",
-            "strokeColor": "green",
-            "userdata": {"class": "d", "objId": 1},
-            "fillOpacity": 0.1,
-            "strokeWidth": 2,
-            "rescale": {"strokeWidth": 2},
-        },
-        "userdata": {"class": "d", "objId": 1},
-    },
-    {
-        "type": "Feature",
-        "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [
-                [
-                    [
-                        [45677, 13048],
-                        [46572, 13048],
-                        [46572, 13345],
-                        [45677, 13345],
-                        [45677, 13048],
-                    ]
-                ]
-            ],
-        },
-        "properties": {
-            "fillColor": "red",
-            "strokeColor": "red",
-            "userdata": {"class": "a", "objId": 2},
-            "fillOpacity": 0.1,
-            "strokeWidth": 2,
-            "rescale": {"strokeWidth": 2},
-        },
-        "userdata": {"class": "a", "objId": 2},
-    },
-    {
-        "type": "Feature",
-        "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [
-                [
-                    [
-                        [42847, 24844],
-                        [43396, 24844],
-                        [43396, 25140],
-                        [42847, 25140],
-                        [42847, 24844],
-                    ]
-                ]
-            ],
-        },
-        "properties": {
-            "fillColor": "purple",
-            "strokeColor": "purple",
-            "userdata": {"class": "f", "objId": 3},
-            "fillOpacity": 0.1,
-            "strokeWidth": 2,
-            "rescale": {"strokeWidth": 2},
-        },
-        "userdata": {"class": "f", "objId": 3},
-    },
-]
+# img["palette"] = ["#000000", CHANNEL_COLORS[idx]]
 
 
-demo_inputToPaper = {"actions": [{"type": "drawItems", "itemList": sampleShapes}]}
+# hsi_color = rgb_to_hsi(rgb_color['r'], rgb_color['g'], rgb_color['b'])
+# print(hsi_color)  # Output: {'
 
+demo_inputToPaper = {"actions": [{"type": "drawItems", "itemList": sts.sampleShapes}]}
 
-tileSources = [
-    {
-        "label": "TCGA-BF-A1Q0-01A-02-TSB",
-        "value": 0,
-        "_id": "5b9f10a8e62914002e956509",
-        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-        "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f10a8e62914002e956509/tiles/dzi.dzi",
-    },
-    {
-        "label": "TCGA-2J-AAB4",
-        "value": 0,
-        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-        "_id": "5b9f0d63e62914002e9547f0",
-        "tileSources": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
-    },
-    {
-        "label": "TCGA-2J-AAB4-01Z-00-DX1",
-        "value": 1,
-        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-        "_id": "5b9f0d64e62914002e9547f4",
-        "tileSources": [
-            "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi"
-        ],
-    },
-    {
-        "label": "Image stack",
-        "value": 2,
-        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-        "tileSources": [
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-                "_id": "5b9f0d64e62914002e9547f4",
-                "x": 0,
-                "y": 0,
-                "opacity": 1,
-                "layerIdx": 0,
-            },
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-                "_id": "5b9f0d64e62914002e9547f4",
-                "x": 0.2,
-                "y": 0.2,
-                "opacity": 0.2,
-                "layerIdx": 1,
-            },
-        ],
-    },
-    {
-        "label": "CDG Example",
-        "value": 2,
-        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-        "tileSources": [
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-                "_id": "5b9f0d64e62914002e9547f4",
-                "x": 0,
-                "y": 0,
-                "opacity": 1,
-                "layerIdx": 0,
-            }
-        ],
-    },
-    {
-        "label": "ISIC Example",
-        "value": 3,
-        "apiUrl": "https://wsi-deid.pathology.emory.edu/api/v1",
-        "tileSources": [
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e2309a9ffde668be5e/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e4309a9ffde668be70/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e4309a9ffde668be73/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be4f/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be58/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e0309a9ffde668be46/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767df309a9ffde668be43/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767ce309a9ffde668bd77/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767ce309a9ffde668bd7a/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be52/tiles/dzi.dzi"
-            },
-        ],
-    },
-]
+from sampleTileSources import tileSources
 
 tileSourceDict = {x["label"]: x["tileSources"] for x in tileSources}
 
@@ -282,15 +139,46 @@ config = {
 }
 
 
+CHANNEL_COLORS = [
+    "#FF0000",  # Red
+    "#00FF00",  # Green
+    "#0000FF",  # Blue
+    "#FFFF00",  # Yellow
+    "#00FFFF",  # Cyan
+    "#FF00FF",  # Magenta
+    "#FFA500",  # Orange
+    "#800080",  # Purple
+    "#00FF00",  # Lime
+    "#FFC0CB",  # Pink
+    "#008080",  # Teal
+    "#A52A2A",  # Brown
+    "#000080",  # Navy
+    "#808000",  # Olive
+    "#800000",  # Maroon
+]
+
 imgSrc_control_table = dash_ag_grid.AgGrid(
     id="imgSrc_table",
     rowData=[],
     columnDefs=[
         {
-            "field": "isVisible",
-            "cellEditor": {"function": "eyeCellRenderer"},
+            "field": "idx",
+            "width": 75,
+        },  ## This is important to track as this is what OSD uses internally
+        {
+            "field": "palette",
+            "headerName": "Color",
+            "cellRenderer": "colorCellRenderer",
+            "width": 100,
             "editable": True,
-            "width": 50,
+        },
+        {
+            "field": "isVisible",
+            "cellRenderer": "agCheckboxCellRenderer",
+            "cellEditor": "agCheckboxCellEditor",
+            "editable": True,
+            # "headerName": "<span>&#x1F441;</span>",
+            "width": 100,
         },
         {"field": "_id", "header": "Item ID"},
         {
@@ -309,11 +197,13 @@ imgSrc_control_table = dash_ag_grid.AgGrid(
         },
         {"field": "xOffset", "header": "X Offset", "editable": True},
         {"field": "yOffset", "header": "Y Offset", "editable": True},
-        {"field": "xOffsetPixels", "header": "X Offset", "editable": True},
-        {"field": "yOffsetPixels", "header": "Y Offset", "editable": True},
+        # {"field": "xOffsetPixels", "header": "X Offset", "editable": True},
+        # {"field": "yOffsetPixels", "header": "Y Offset", "editable": True},
         {"field": "rotation", "header": "Rotation", "editable": True},
         {"field": "width", "header": "Width", "width": 80},
         {"field": "height", "header": "Height", "width": 80},
+        {"field": "sizeX"},
+        {"field": "sizeY"},
         {
             "field": "palette",
             "headerName": "Color",
@@ -333,42 +223,42 @@ imgSrc_control_table = dash_ag_grid.AgGrid(
 )
 
 
-def cbCreateItem(args):
-    return createItem(args)
+# def cbCreateItem(args):
+#     return createItem(args)
 
 
-def cbItemDeleted(args):
-    print(args)
-    print("Item Deleted")
-    return itemDeleted(args)
+# def cbItemDeleted(args):
+#     print(args)
+#     print("Item Deleted")
+#     return itemDeleted(args)
 
 
-def cbItemEdited(args):
-    print(args)
-    print("Item Edited")
-    return itemEdited(args)
+# def cbItemEdited(args):
+#     print(args)
+#     print("Item Edited")
+#     return itemEdited(args)
 
 
-def cbMouseEnter(args):
-    return mouseEnter(args)
+# def cbMouseEnter(args):
+#     return mouseEnter(args)
 
 
-def cbMouseLeave(args):
-    return mouseLeave(args)
+# def cbMouseLeave(args):
+#     return mouseLeave(args)
 
 
-def cbPropertyChanged(args):
-    return propertyChanged(args)
+# def cbPropertyChanged(args):
+#     return propertyChanged(args)
 
 
-callbacks = {
-    "createItem": cbCreateItem,
-    "itemEdited": cbItemEdited,
-    "itemDeleted": cbItemDeleted,
-    "mouseEnter": cbMouseEnter,
-    "mouseLeave": cbMouseLeave,
-    "propertyChanged": cbPropertyChanged,
-}
+# callbacks = {
+#     "createItem": cbCreateItem,
+#     "itemEdited": cbItemEdited,
+#     "itemDeleted": cbItemDeleted,
+#     "mouseEnter": cbMouseEnter,
+#     "mouseLeave": cbMouseLeave,
+#     "propertyChanged": cbPropertyChanged,
+# }
 
 
 geoJsonShapeColumns = [
@@ -416,10 +306,34 @@ osdElement = dash_paperdragon.DashPaperdragon(
     zoomLevel=0,
     viewportBounds={"x": 0, "y": 0, "width": 0, "height": 0},
     curMousePosition={"x": 0, "y": 0},
-    inputToPaper=demo_inputToPaper,  ## If I am doing this.. I also need to put it in the shape table
+    ##inputToPaper=demo_inputToPaper,  ## If I am doing this.. I also need to put it in the shape table
     outputFromPaper=None,
     viewerWidth=800,
+    pixelColor={"r": 0, "g": 0, "b": 0},
 )
+
+
+@callback(
+    Output("pixelColor_disp", "children"), Input("osdViewerComponent", "pixelColor")
+)
+def update_pixel_color(pixelColor):
+    print(pixelColor, "was received")
+    if pixelColor:
+        color_string = f"RGB: {pixelColor['r']}, {pixelColor['g']}, {pixelColor['b']}"
+
+        rgbColor = f"rgb({pixelColor['r']}, {pixelColor['g']}, {pixelColor['b']})"
+        print(rgbColor)
+        color_box_style = {
+            "display": "inline-block",
+            "width": "20px",
+            "height": "20px",
+            "backgroundColor": rgbColor,
+            "marginLeft": "10px",
+            "border": "1px solid #000",
+        }
+        return html.Div([html.Span(color_string), html.Div(style=color_box_style)])
+    return "No color data"
+
 
 ## Make HTML layout
 coordinate_display = html.Div(
@@ -479,6 +393,22 @@ coordinate_display = html.Div(
                         [
                             dbc.CardBody(
                                 [
+                                    html.H6("Pixel Color", className="card-title"),
+                                    html.Div(
+                                        id="pixelColor_disp", className="card-text"
+                                    ),
+                                ]
+                            )
+                        ],
+                        className="mb-1 img-control-card",
+                    ),
+                    width=4,
+                ),
+                dbc.Col(
+                    dbc.Card(
+                        [
+                            dbc.CardBody(
+                                [
                                     html.H6(
                                         "Highlighted Object", className="card-title"
                                     ),
@@ -522,7 +452,7 @@ coordinate_display = html.Div(
                                 columnDefs=geoJsonShapeColumns,
                                 columnSizeOptions={"defaultMaxWidth": 200},
                                 # columnSize="sizeToFit",
-                                rowData=sampleShapes,  ## Only if setting sample shapes above..
+                                rowData=sts.sampleShapes,  ## Only if setting sample shapes above..
                                 defaultColDef={
                                     "resizable": True,
                                     "sortable": True,
@@ -580,7 +510,7 @@ imageSelect_dropdown = html.Div(
         dbc.Select(
             id="imageSelect",
             options=[x["label"] for x in tileSources],
-            value=tileSources[0]["label"],
+            value=tileSources[0]["label"],  ## Starting with imageStack example
             className="mb-4 d-inline",
             style={"width": "300px", "marginLleft": "10px", "marginTop": "1px"},
         ),
@@ -631,46 +561,107 @@ def find_index_by_objId(data, target_objId):
 @callback(Output("imgSrc_table", "rowData"), Input("imageSelect", "value"))
 def update_imgSrc_table(selectedImages):
     ## An image sorce can consist of one or more tile sources
-    print("Selected Image", selectedImages)
-
-    print(tileSourceDict)
-    #  newTileSources = tileSourceDict.get(tileSourceIdx, None)
-    # imgSrcControls = []
-
-    imgSrc = tileSourceDictTwo[selectedImages]
-
-    ## This deals with the case where just a dict is passed for a single image tilesource
-    if not isinstance(imgSrc, list):
-        imgSrc = [imgSrc]
+    tileSourceList = tileSourceDictTwo[selectedImages]["tileSources"]
 
     imgSources = []
-    for img in imgSrc:
-        print(img, "is the image")
+    for idx, ts in enumerate(tileSourceList):
+        if isinstance(ts, str):
+            ts = {
+                "tileSource": ts,
+                "x": 0,
+                "y": 0,
+                "opacity": 1,
+                "_id": hlprs.get_itemId_from_url(ts[1]),
+                "apiUrl": hlprs.get_itemId_from_url(ts[0]),
+            }
+
+        ## Check for the case where the _id is not set regardless
+        if "_id" not in ts:
+            ts["_id"] = hlprs.get_itemId_from_url(ts["tileSource"])[1]
+            ts["apiUrl"] = hlprs.get_itemId_from_url(ts["tileSource"])[0]
+
+            ## If the APIUrl is not set, I can get the _id from the
+
+        ## Add BaseImageWidth property.. which I need to retrieve..
+
+        if "sizeX" not in ts:
+            ## Get it from the DSA ...
+            gc = girder_client.GirderClient(apiUrl=ts["apiUrl"])
+            tileInfo = gc.get(f"item/{ts['_id']}/tiles")
+            ts.update(tileInfo)  ## Add the tileInfo
+            ## I could cache this if I want to speed it up...
+
         img_dict = {
             "isVisible": True,
-            "opacity": 1,  # 1 if idx < 3 else 0,
-            # "palette": ["#000000", CHANNEL_COLORS[idx % 7]],
-            "_id": img.get("_id", None),
-            "rotation": 0,
-            "width": 1,
-            "height": 1,
-            "yOffset": 0,
-            "xOffset": 0,
-            "xOffsetPixels": 0,
-            "yOffsetPixels": 0,
+            "opacity": ts.get("opacity", 1),
+            "_id": ts.get("_id", None),
+            "apiUrl": ts.get("apiUrl", None),
+            "rotation": ts.get("rotation", 0),
+            "width": ts.get("width", 1),
+            "height": ts.get("height", 1),
+            "xOffset": ts.get("x", 0),
+            "yOffset": ts.get("y", 0),
+            # "xOffsetPixels": 0,
+            # "yOffsetPixels": 0,
+            "idx": idx,
+            "palette": ["#000000#", CHANNEL_COLORS[idx]],
+            "sizeX": ts.get("sizeX", 1),
+            "sizeY": ts.get("sizeY", 1),
         }
         imgSources.append(img_dict)
-
+    # img["palette"] = ["#000000", CHANNEL_COLORS[idx]]
     return imgSources
 
 
 @callback(
     Output("osdViewerComponent", "tileSourceProps"),
-    [Input("imgSrc_table", "cellValueChanged"), State("imgSrc_table", "rowData")],
-    prevent_initial_call=True,
+    Output("osdViewerComponent", "tileSources"),
+    [
+        Input("imgSrc_table", "cellValueChanged"),
+        Input("imgSrc_table", "rowData"),  ## STATE OR NOT TO STATE... HMM
+        State("osdViewerComponent", "tileSources"),
+    ],
+    # prevent_initial_call=True,
 )
-def update_tilesource_props(_, img_data):
+def update_tilesource_props(cellChanged, img_data, currentTileSources):
     # Update the properties of the image.
+    ## CAN FIGURE OUT USING CALLBACK CONTEXT IF THE TABLE CHANGED OT JUST A CELL VALUE..
+
+    # https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi
+
+    if not currentTileSources:
+        # print("There are no current tile sources.. so processing", img_data)
+        tileSources = []
+
+        for r in img_data:
+            # print(r)
+            imgTileSource = r["apiUrl"] + "/item/" + r["_id"] + "/tiles/dzi.dzi"
+            if r["palette"]:
+                imgTileSource += "?style=" + hlprs.generate_dsaStyle_string(
+                    r["palette"][1], r["opacity"]
+                )
+
+            else:
+                imgStyle = None
+
+            if r["idx"] % 2 == 0:
+                r["flipped"] = True
+
+            tileSources.append(
+                {
+                    "tileSource": imgTileSource,
+                    "x": r["xOffset"]
+                    / r[
+                        "sizeX"
+                    ],  ## Movement is scaled based on the imageWidth of the 0th image actually...
+                    "y": r["yOffset"] / r["sizeX"],
+                    "opacity": r["opacity"],
+                    "rotation": r["rotation"],
+                    # "flipped": True, ## WORkS!
+                }
+            )
+        # print(tileSources, "are being returned..")
+        return no_update, tileSources
     if len(img_data):
         tilesource_props = []
         print(img_data)
@@ -679,15 +670,15 @@ def update_tilesource_props(_, img_data):
                 {
                     "index": i,  ## WHY IS THIS ERRORING?
                     "opacity": r["opacity"] if r["isVisible"] else 0,
-                    "x": r["xOffset"],
-                    "y": r["yOffset"],
+                    "x": r["xOffset"] / r["sizeX"],
+                    "y": r["yOffset"] / r["sizeX"],
                     "rotation": r["rotation"],
                 }
             )
 
-        return tilesource_props
+        return tilesource_props, no_update
 
-    return []
+    return [], no_update
 
 
 ### This populates the image selection table when the imageSelect dropwdown is changed
@@ -698,6 +689,10 @@ def update_tilesource_props(_, img_data):
 # )
 # def populate_dsa_annotation_table(imageSelect):
 #     imgTileSources = tileSourceDict[imageSelect]
+#   "tileSrcIdx": idx,
+#                 # "compositeOperation": "screen",
+# Valid values are 'source-over', 'source-atop', 'source-in', 'source-out', 'destination-over', 'destination-atop', 'destination-in', 'destination-out', 'lighter', 'difference', 'copy', 'xor', etc. For complete list of modes, please
+## ADD FLIPPED OPTION!!!
 
 
 ## NEED TO CLEAR THE MESSAGE ONCE THE EVENT FIRES...
@@ -823,6 +818,7 @@ def handleOutputFromPaper(
                 return no_update, currentShapeData, {}
             else:
                 print("Found object at index", editedObjIdx)
+
                 currentShapeData[editedObjIdx]["rotation"] = "IWASROTATED"
 
             return no_update, currentShapeData, {}
@@ -956,7 +952,6 @@ def populate_dsa_annotation_table(imageSelect):
 
 def annotationToGeoJson(annotation):
     # print("Processing Annotation")
-
     r = requests.get(f"{annotation['apiUrl']}/annotation/{annotation['_id']}")
 
     if r:
@@ -999,11 +994,11 @@ def update_viewportBounds(viewPortBounds):
     )
 
 
-def generateImgSrcControlPanel(tileSource, idx):
-    if isinstance(tileSource, str):
-        tileSource = {"tileSource": tileSource, "x": 0, "y": 0, "opacity": 1}
+# def generateImgSrcControlPanel(tileSource, idx):
+#     if isinstance(tileSource, str):
+#         tileSource = {"tileSource": tileSource, "x": 0, "y": 0, "opacity": 1}
 
-    return hlprs.create_layer_div(idx, tileSource)
+#     return hlprs.create_layer_div(idx, tileSource)
 
 
 # osdShapeData
@@ -1094,10 +1089,15 @@ def update_curShapeObject(curShapeObject):
         return no_update
 
 
-@callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
-def update_imageSrc(tileSourceIdx):
-    newTileSource = tileSourceDict[tileSourceIdx]
-    return newTileSource
+# @callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
+# def update_imageSrc(tileSourceIdx):
+#     newTileSource = tileSourceDict[tileSourceIdx]
+
+#     ## Do I get the data from the imageSelect value, or do I get it from the table it self... HMM TBD
+
+#     print(newTileSource, "is the new tile source")
+
+#     return newTileSource
 
 
 def createItem(data):

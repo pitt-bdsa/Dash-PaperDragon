@@ -9,6 +9,33 @@ import uuid
 import math
 from dash import html, dcc
 from pprint import pprint
+import re
+
+
+def get_itemId_from_url(url):
+    # Extract the item id from the url
+    # The url is expected to be in the format: https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi
+    pattern = r"(.*?)/item/(.*?)/tiles/"
+    match = re.search(pattern, url)
+    if match:
+        api_url = match.group(1)
+        item_id = match.group(2)
+        # print(f"Before item: {api_url}")
+        # print(f"Item ID: {item_id}")  ## Determine if I really should return this as a tuple or not..
+        return api_url, item_id
+    else:
+        return url, None
+
+
+def standardizeTileSourceOutput(tileSources):
+    for tileSource in tileSources:
+        if "label" not in tileSource:
+            tileSource["label"] = "Tile Source"
+        if "value" not in tileSource:
+            tileSource["value"] = 0
+        if "apiUrl" not in tileSource:
+            tileSource["apiUrl"] = ""
+    return tileSources
 
 
 def dsa_to_geo_json(dsa):
@@ -506,3 +533,38 @@ def create_layer_div(idx, tileSource):
         ],
         className="mb-4",
     )
+
+
+# tilesource = os.path.join(
+#     os.getenv("DSA_API_URL"),
+#     f'item/{img["_id"]}/tiles/dzi.dzi?token={gc_token}&style={generate_dsaStyle_string(CHANNEL_COLORS[idx])}',
+# )
+
+
+import urllib
+import json
+import os
+
+
+def generate_dsaStyle_string(
+    color: str | None = None, opacity: float | None = None
+) -> str:
+    """Generate a DSA style string.
+
+    Args:
+        color (str, optional): The color to use. Defaults to None.
+        opacity (float, optional): The opacity to use. Defaults to None.
+
+    Returns:
+        str: The encoded style string.
+
+    """
+    if color is None:
+        color = "#000fff"
+    if opacity is None:
+        opacity = 0.5
+
+    styleData = {"palette": ["#000000", color], "opacity": opacity}
+
+    encodedStyle = urllib.parse.quote_plus(json.dumps(styleData))
+    return encodedStyle

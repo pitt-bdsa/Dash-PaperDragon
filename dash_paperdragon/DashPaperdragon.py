@@ -32,6 +32,17 @@ Keyword arguments:
 - outputFromPaper (dict; optional):
     data sent from paper back to dash.
 
+- pixelColor (dict; optional):
+    The color of the pixel under the mouse cursor.
+
+    `pixelColor` is a dict with keys:
+
+    - b (number; optional)
+
+    - g (number; optional)
+
+    - r (number; optional)
+
 - tileSourceProps (list; optional):
     sent from dash to update x offset, y offset, rotation, or opacity
     of the image.
@@ -55,10 +66,10 @@ Keyword arguments:
     _namespace = 'dash_paperdragon'
     _type = 'DashPaperdragon'
     @_explicitize_args
-    def __init__(self, id=Component.UNDEFINED, config=Component.UNDEFINED, tileSources=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, curMousePosition=Component.UNDEFINED, viewportBounds=Component.UNDEFINED, outputFromPaper=Component.UNDEFINED, inputToPaper=Component.UNDEFINED, tileSourceProps=Component.UNDEFINED, baseImageWidth=Component.UNDEFINED, viewerWidth=Component.UNDEFINED, viewerHeight=Component.UNDEFINED, curShapeObject=Component.UNDEFINED, **kwargs):
-        self._prop_names = ['id', 'baseImageWidth', 'config', 'curMousePosition', 'curShapeObject', 'inputToPaper', 'outputFromPaper', 'tileSourceProps', 'tileSources', 'viewerHeight', 'viewerWidth', 'viewportBounds', 'zoomLevel']
+    def __init__(self, id=Component.UNDEFINED, config=Component.UNDEFINED, tileSources=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, curMousePosition=Component.UNDEFINED, viewportBounds=Component.UNDEFINED, outputFromPaper=Component.UNDEFINED, inputToPaper=Component.UNDEFINED, tileSourceProps=Component.UNDEFINED, baseImageWidth=Component.UNDEFINED, viewerWidth=Component.UNDEFINED, viewerHeight=Component.UNDEFINED, pixelColor=Component.UNDEFINED, curShapeObject=Component.UNDEFINED, **kwargs):
+        self._prop_names = ['id', 'baseImageWidth', 'config', 'curMousePosition', 'curShapeObject', 'inputToPaper', 'outputFromPaper', 'pixelColor', 'tileSourceProps', 'tileSources', 'viewerHeight', 'viewerWidth', 'viewportBounds', 'zoomLevel']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'baseImageWidth', 'config', 'curMousePosition', 'curShapeObject', 'inputToPaper', 'outputFromPaper', 'tileSourceProps', 'tileSources', 'viewerHeight', 'viewerWidth', 'viewportBounds', 'zoomLevel']
+        self.available_properties = ['id', 'baseImageWidth', 'config', 'curMousePosition', 'curShapeObject', 'inputToPaper', 'outputFromPaper', 'pixelColor', 'tileSourceProps', 'tileSources', 'viewerHeight', 'viewerWidth', 'viewportBounds', 'zoomLevel']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()
