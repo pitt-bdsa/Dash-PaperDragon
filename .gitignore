@@ -282,3 +282,11 @@ JuliaManifest.toml
 dash_paperdragon/dash_paperdragon.min.js.map
 dash_paperdragon/dash_paperdragon.min.js
 .DS_Store
+osd-paperjs-annotation.old/*
+
+
+*dash_paperdragon.min*
+R/internal.R
+Project.toml
+dash_paperdragon/metadata.json
+dash_paperdragon/metadata.json

@@ -1,5 +1,15 @@
 import dash_paperdragon
-import math
+
+from dash_paperdragon import utils
+from dash_paperdragon.utils import (
+    getId,
+    CHANNEL_COLORS,
+    annotationToGeoJson,
+    get_box_instructions,
+    generate_random_boxes,
+)
+
+# print(utils.get_color_from_pixel({"color": "red"}))
 
 from dash import (
     Dash,
@@ -29,43 +39,6 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 # For now these are global variables; can be redis if multiple windows can interact with the same server
 colors = ["red", "orange", "yellow", "green", "blue", "purple"]
 classes = ["a", "b", "c", "d", "e", "f"]
-
-globalId = 0
-
-
-def getId():
-    global globalId
-    globalId = globalId + 1
-    return globalId
-
-
-def rgb_to_hsi(r, g, b):
-    # Normalize the RGB values to the range [0, 1]
-    r /= 255
-    g /= 255
-    b /= 255
-
-    # Calculate Intensity (I)
-    I = (r + g + b) / 3
-
-    # Calculate Saturation (S)
-    min_rgb = min(r, g, b)
-    S = 1 - (min_rgb / I) if I != 0 else 0
-
-    # Calculate Hue (H)
-    H = 0
-    if S != 0:
-        numerator = 0.5 * ((r - g) + (r - b))
-        denominator = math.sqrt((r - g) * (r - g) + (r - b) * (g - b))
-        H = math.acos(numerator / denominator) if denominator != 0 else 0
-
-        if b > g:
-            H = 2 * math.pi - H
-
-    # Convert Hue to degrees
-    H = H * (180 / math.pi)
-
-    return {"H": H, "S": S, "I": I}
 
 
 # possible bindings for actions:
@@ -113,6 +86,7 @@ config = {
         {"event": "keyDown", "key": "d", "action": "deleteItem"},
         {"event": "keyDown", "key": "n", "action": "newItem", "tool": "rectangle"},
         {"event": "keyDown", "key": "e", "action": "editItem", "tool": "rectangle"},
+        {"event": "keyDown", "key": "l", "action": "grabColor"},
         {"event": "mouseEnter", "action": "dashCallback", "callback": "mouseEnter"},
         {"event": "mouseLeave", "action": "dashCallback", "callback": "mouseLeave"},
     ],
@@ -139,24 +113,6 @@ config = {
 }
 
 
-CHANNEL_COLORS = [
-    "#FF0000",  # Red
-    "#00FF00",  # Green
-    "#0000FF",  # Blue
-    "#FFFF00",  # Yellow
-    "#00FFFF",  # Cyan
-    "#FF00FF",  # Magenta
-    "#FFA500",  # Orange
-    "#800080",  # Purple
-    "#00FF00",  # Lime
-    "#FFC0CB",  # Pink
-    "#008080",  # Teal
-    "#A52A2A",  # Brown
-    "#000080",  # Navy
-    "#808000",  # Olive
-    "#800000",  # Maroon
-]
-
 imgSrc_control_table = dash_ag_grid.AgGrid(
     id="imgSrc_table",
     rowData=[],
@@ -174,6 +130,14 @@ imgSrc_control_table = dash_ag_grid.AgGrid(
         },
         {
             "field": "isVisible",
+            "cellRenderer": "agCheckboxCellRenderer",
+            "cellEditor": "agCheckboxCellEditor",
+            "editable": True,
+            # "headerName": "<span>&#x1F441;</span>",
+            "width": 100,
+        },
+        {
+            "field": "isFlipped",
             "cellRenderer": "agCheckboxCellRenderer",
             "cellEditor": "agCheckboxCellEditor",
             "editable": True,
@@ -204,12 +168,6 @@ imgSrc_control_table = dash_ag_grid.AgGrid(
         {"field": "height", "header": "Height", "width": 80},
         {"field": "sizeX"},
         {"field": "sizeY"},
-        {
-            "field": "palette",
-            "headerName": "Color",
-            "cellRenderer": "colorCellRenderer",
-            "width": 100,
-        },
     ],
     defaultColDef={
         "resizable": True,
@@ -296,6 +254,7 @@ dsaAnnotation_table = dash_ag_grid.AgGrid(
     },
     style={"height": "300px"},
 )
+###[{'type': 'Feature', 'geometry': {'type': 'MultiPolygon', 'coordinates': [[[[30043, 6229], [30383, 6229], [30383, 6438], [30043, 6438], [30043, 6229]]]]}, 'properties': {'fillColor': 'orange', 'strokeColor': 'orange', 'userdata': {'class': 'b', 'objId': 22}, 'fillOpacity': 0.1, 'strokeWidth': 2, 'rescale': {'strokeWidth': 2}}, 'userdata': {'class': 'b', 'objId': 22}}, {'type': 'Feature', 'geometry': {'type': 'MultiPolygon', 'coordinates': [[[[44496, 6424], [44830, 6424], [44830, 6725], [44496, 6725], [44496, 6424]]]]}, 'properties': {'fillColor': 'yellow', 'strokeColor': 'yellow', 'userdata': {'class': 'c', 'objId': 23}, 'fillOpacity': 0.1, 'strokeWidth': 2, 'rescale': {'strokeWidth': 2}}, 'userdata': {'class': 'c', 'objId': 23}}, {'type': 'Feature', 'geometry': {'type': 'MultiPolygon', 'coordinates': [[[[36527, 8861], [36997, 8861], [36997, 8999], [36527, 8999], [36527, 8861]]]]}, 'properties': {'fillColor': 'purple', 'strokeColor': 'purple', 'userdata': {'class': 'f', 'objId': 24}, 'fillOpacity': 0.1, 'strokeWidth': 2, 'rescale': {'strokeWidth': 2}}, 'userdata': {'class': 'f', 'objId': 24}}]
 
 
 ## Create element
@@ -306,7 +265,7 @@ osdElement = dash_paperdragon.DashPaperdragon(
     zoomLevel=0,
     viewportBounds={"x": 0, "y": 0, "width": 0, "height": 0},
     curMousePosition={"x": 0, "y": 0},
-    ##inputToPaper=demo_inputToPaper,  ## If I am doing this.. I also need to put it in the shape table
+    inputToPaper=None,  # demo_inputToPaper,  ## If I am doing this.. I also need to put it in the shape table
     outputFromPaper=None,
     viewerWidth=800,
     pixelColor={"r": 0, "g": 0, "b": 0},
@@ -604,13 +563,50 @@ def update_imgSrc_table(selectedImages):
             # "xOffsetPixels": 0,
             # "yOffsetPixels": 0,
             "idx": idx,
-            "palette": ["#000000#", CHANNEL_COLORS[idx]],
+            "palette": None,  # ["#000000#", CHANNEL_COLORS[idx]],
             "sizeX": ts.get("sizeX", 1),
             "sizeY": ts.get("sizeY", 1),
         }
         imgSources.append(img_dict)
     # img["palette"] = ["#000000", CHANNEL_COLORS[idx]]
     return imgSources
+
+
+def process_tilesource_input(img_data):
+    ## I am going to allow multiple formats to be specified in the data loader which I documented above
+    # For passing to openseadragon as a tile source... however to make things simple on rEACT side of things
+    ## I want to pass a consistent set of properties, so I will append them in here..
+
+    normalized_tilesources = []
+    for r in img_data:
+        # print(r)
+        imgTileSource = r["apiUrl"] + "/item/" + r["_id"] + "/tiles/dzi.dzi"
+        if r["palette"]:
+            imgTileSource += "?style=" + hlprs.generate_dsaStyle_string(
+                r["palette"][1], r["opacity"]
+            )
+
+        else:
+            imgStyle = None
+
+        if r["idx"] % 2 == 0:
+            r["flipped"] = True
+
+        normalized_tilesources.append(
+            {
+                "tileSource": imgTileSource,
+                "x": r["xOffset"]
+                / r[
+                    "sizeX"
+                ],  ## Movement is scaled based on the imageWidth of the 0th image actually...
+                "y": r["yOffset"] / r["sizeX"],
+                "opacity": r["opacity"],
+                "rotation": r["rotation"],
+                # "flipped": True, ## WORkS!
+            }
+        )
+
+    return normalized_tilesources
 
 
 @callback(
@@ -625,43 +621,46 @@ def update_imgSrc_table(selectedImages):
 )
 def update_tilesource_props(cellChanged, img_data, currentTileSources):
     # Update the properties of the image.
-    ## CAN FIGURE OUT USING CALLBACK CONTEXT IF THE TABLE CHANGED OT JUST A CELL VALUE..
+    ## CAN FIGURE OUT USING CALLBACK CONTEXT IF THE TABLE CHANGED OR JUST A CELL VALUE..
 
     # https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi
 
     if not currentTileSources:
         # print("There are no current tile sources.. so processing", img_data)
-        tileSources = []
 
-        for r in img_data:
-            # print(r)
-            imgTileSource = r["apiUrl"] + "/item/" + r["_id"] + "/tiles/dzi.dzi"
-            if r["palette"]:
-                imgTileSource += "?style=" + hlprs.generate_dsaStyle_string(
-                    r["palette"][1], r["opacity"]
-                )
+        normalized_tilesources = process_tilesource_input(img_data)
+        # print(normalized_tilesources, "are the normalized tilesources")
+        # print(img_data, "is the img_data")
+        # for r in img_data:
+        #     # print(r)
+        #     imgTileSource = r["apiUrl"] + "/item/" + r["_id"] + "/tiles/dzi.dzi"
+        #     if r["palette"]:
+        #         imgTileSource += "?style=" + hlprs.generate_dsaStyle_string(
+        #             r["palette"][1], r["opacity"]
+        #         )
 
-            else:
-                imgStyle = None
+        #     else:
+        #         imgStyle = None
 
-            if r["idx"] % 2 == 0:
-                r["flipped"] = True
+        #     if r["idx"] % 2 == 0:
+        #         r["flipped"] = True
 
-            tileSources.append(
-                {
-                    "tileSource": imgTileSource,
-                    "x": r["xOffset"]
-                    / r[
-                        "sizeX"
-                    ],  ## Movement is scaled based on the imageWidth of the 0th image actually...
-                    "y": r["yOffset"] / r["sizeX"],
-                    "opacity": r["opacity"],
-                    "rotation": r["rotation"],
-                    # "flipped": True, ## WORkS!
-                }
-            )
+        #     tileSources.append(
+        #         {
+        #             "tileSource": imgTileSource,
+        #             "x": r["xOffset"]
+        #             / r[
+        #                 "sizeX"
+        #             ],  ## Movement is scaled based on the imageWidth of the 0th image actually...
+        #             "y": r["yOffset"] / r["sizeX"],
+        #             "opacity": r["opacity"],
+        #             "rotation": r["rotation"],
+        #             # "flipped": True, ## WORkS!
+        #         }
+        #     )
+        # print(tileSources, "is what I am passing to OSD")
         # print(tileSources, "are being returned..")
-        return no_update, tileSources
+        return no_update, normalized_tilesources
     if len(img_data):
         tilesource_props = []
         print(img_data)
@@ -676,9 +675,9 @@ def update_tilesource_props(cellChanged, img_data, currentTileSources):
                 }
             )
 
-        return tilesource_props, no_update
+        return img_data, tilesource_props
 
-    return [], no_update
+    return img_data, img_data
 
 
 ### This populates the image selection table when the imageSelect dropwdown is changed
@@ -859,62 +858,6 @@ def handleOutputFromPaper(
     return no_update, no_update, {}
 
 
-#     return command
-def get_box_instructions(x, y, w, h, color, userdata={}):
-    # Define the coordinates of the rectangle (polygon in GeoJSON)
-    coordinates = [
-        [x, y],  # Bottom left corner
-        [x + w, y],  # Bottom right corner
-        [x + w, y + h],  # Top right corner
-        [x, y + h],  # Top left corner
-        [x, y],  # Back to bottom left corner to close the polygon
-    ]
-
-    # Create the GeoJSON object
-    geojson = {
-        "type": "Feature",
-        "geometry": {
-            "type": "MultiPolygon",
-            "coordinates": [[coordinates]],
-        },
-        "properties": {
-            "fillColor": color,
-            "strokeColor": color,
-            "userdata": userdata,
-            "fillOpacity": 0.1,
-            "strokeWidth": 2,
-            "rescale": {"strokeWidth": 2},
-        },
-        "userdata": userdata,
-    }
-
-    return geojson
-
-
-def generate_random_boxes(num_points, bounds):
-    out = []
-
-    x = int(bounds["x"])
-    w = int(bounds["width"])
-    y = int(bounds["y"])
-    h = int(bounds["height"])
-
-    for idx, _ in enumerate(range(num_points)):
-        className, color = random.choice(list(zip(classes, colors)))
-        # color = random.choice(colors)
-        userdata = {"class": className, "objId": getId()}
-
-        bx = random.randint(x, x + w)
-        by = random.randint(y, y + h)
-        bw = random.randint(int(w / 150), int(w / 50))
-        bh = random.randint(int(h / 150), int(h / 50))
-        instructions = get_box_instructions(bx, by, bw, bh, color, userdata)
-
-        out.append(instructions)
-
-    return out
-
-
 @callback(
     Output("annotationTable", "rowData"),
     Input("imageSelect", "value"),
@@ -948,18 +891,6 @@ def populate_dsa_annotation_table(imageSelect):
 
 ### This will pull the annotations from the DSA for the given item, I am going to focus on
 ### the first item tilesources
-
-
-def annotationToGeoJson(annotation):
-    # print("Processing Annotation")
-    r = requests.get(f"{annotation['apiUrl']}/annotation/{annotation['_id']}")
-
-    if r:
-        dsaAnnot = r.json()
-        geoJsonBlob = hlprs.dsa_to_geo_json(dsaAnnot)
-        # print()
-        return geoJsonBlob
-    return
 
 
 ## This updates the mouse tracker
