@@ -4,9 +4,7 @@ import OpenSeadragon from 'openseadragon';
 import { AnnotationToolkit, RectangleTool } from 'osd-paperjs-annotation';
 import { DSAAdapter } from './dsaGeoJsonAdapter';
 
-/**
-*  OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer
-*/
+/* OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer */
 const DashPaperdragon = (props) => {
   const { id, // id of the div element created for this viewer
     config, // configuration options for the component
@@ -21,6 +19,7 @@ const DashPaperdragon = (props) => {
     viewerWidth = 640,  //viewer Width in pixels
     viewerHeight = 480, //viewer Height in pixels
     curShapeObject = null, // output property, sent by the component back to dash this is the last shape object that was hovered over
+    pixelColor = null, // output property, sent by the component back to dash with the color data from the pixel under the cursor
     setProps,
   } = props;
 
@@ -35,10 +34,6 @@ const DashPaperdragon = (props) => {
   const paperMousePosRef = useRef({ x: 0, y: 0 });
   const keyDownRef = useRef(null);
   const creatingRef = useRef(null);
-  const editingRef = useRef(null);
-  const viewerIsOpening = useRef(null);  //To deal with issue of annotation and image being passed at same time,
-  //But image is not yet loaded
-
 
   /** Define actions */
   const actionsRef = useRef({
@@ -51,31 +46,12 @@ const DashPaperdragon = (props) => {
     deleteItem,
     dashCallback,
     newItem,
-    editItem
+    getColor,
   });
 
   function raiseEvent(eventName, data) {
     executeCallbacks(eventName, data);
   }
-
-
-
-  /** Open an image based on imageSrc property */
-  useEffect(() => {
-    if (viewerRef.current && tileSources) {
-      // Update the image source
-      viewerRef.current.open(tileSources);
-      viewerIsOpening.current = true;
-      viewerRef.current.addOnceHandler('open', () => {
-        const cachedInputToPaper = viewerIsOpening.current;
-
-        viewerIsOpening.current = false;
-        handleInputToPaper(cachedInputToPaper);
-
-      });
-
-    }
-  }, [tileSources]);
 
 
   /** Create viewer within a useEffect */
@@ -98,27 +74,6 @@ const DashPaperdragon = (props) => {
   }, []);
 
 
-  // CHECK LOGIC WITH DR PEARCE...
-  // /** Create viewer within a useEffect */
-  // useEffect(() => {
-  //   if (!viewerRef.current && tileSources) {
-  //     createViewer();
-  //   }
-  //   // Clean up the viewer when the component unmounts
-  //   return () => {
-  //     if (viewerRef.current) {
-
-  //       // if (tiledImageRef.paperLayer) tiledImageRef.paperLayout.remove();
-
-  //       viewerRef.current.destroy();
-  //       viewerRef.current = null;
-  //       tiledImageRef.current = null;
-
-  //     }
-  //   };
-  // }, []);
-
-
   useEffect(() => {
     const viewer = viewerRef.current;
     // console.log(tileSourceProps, "are being updated")
@@ -135,18 +90,6 @@ const DashPaperdragon = (props) => {
           curTileSource.setOpacity(tileSourceProps[i].opacity);
           curTileSource.setPosition({ x: tileSourceProps[i].x, y: tileSourceProps[i].y })
           curTileSource.setRotation(tileSourceProps[i].rotation);
-
-          //adjust flip property here if set and adjust imageWidth if updated
-
-          //OpenSeadragon.TiledImage
-          //           setWidth(width, immediatelyopt)
-          // Sets the TiledImage's width in the world, adjusting the height to match based on aspect ratio.
-          // Parameters:
-          // Name	Type	Attributes	Default	Description
-          // width	Number			The new width, in viewport coordinates.
-          // immediately	Boolean	<optional>
-          // false	W //setFlip
-
         }
       }
       //Iterate through the tilesources and change the opacity
@@ -197,22 +140,19 @@ const DashPaperdragon = (props) => {
   function drawGeoJsonFeatureSet(action) {
     const list = action.itemList || [];
     if (!list.length) {
-      console.warn('No items were provided in the itemList property');
+      console.warning('No items were provided in the itemList property');
     }
-
-
-  };
+    // Function is empty beyond this point
+  }
 
   function drawDsaAnnotations(action) {
     const list = action.itemList || [];
     if (!list.length) {
-      console.warn('No items were provided in the itemList property');
+      console.warning('No items were provided in the itemList property');
     }
 
     for (const dsa of list) {
       const geoJson = DSAAdapter.dsaToGeoJson(dsa);
-
-
 
     }
   }
@@ -222,42 +162,17 @@ const DashPaperdragon = (props) => {
   function drawItems(action) {
     const list = action.itemList || [];
     if (!list.length) {
-      console.warn('No items were provided in the itemList property');
+      console.warning('No items were provided in the itemList property');
     }
     for (const i of list) {
-      // We now expect all of the objects to be in geojson format
-      console.log(i, "is format I want");
-      let item = paperRef.current.Item.fromGeoJSON(i);
-
+      const item = makeItem(i);
       tiledImageRef.current.addPaperItem(item);
-
-      console.log(item);
-      //Set a small value so that the object is not technically empty
-      //for mouse Enter/leave callbacks
-      item.fillOpacity = i.fillOpacity || 0.001;
-      item.updateFillOpacity();
-
-      // item.fillOpacity = i.properties.fillOpacity || 0.5;
-      item.onMouseEnter = event => {
-        // console.log(event)
-        // console.log(`Item is ${event.target.annotationItem}`);
-
-        setProps({ "curShapeObject": event.target.annotationItem.toGeoJSONFeature() });
-        hoveredItemRef.current = event.target.annotationItem;
-        executeBoundEvents({ event: 'mouseEnter' }, { item: event.target.annotationItem.toGeoJSONFeature() });
-      }
-      item.onMouseLeave = event => {
-        setProps({ "curShapeObject": null });
-        hoveredItemRef.current = null;
-        executeBoundEvents({ event: 'mouseLeave' }, { item: event.target.annotationItem.toGeoJSONFeature() });
-      }
-
     }
   }
 
   function deleteItem(opts) {
 
-    raiseEvent('item-deleted', { item: opts.item.annotationItem._paperItem, userdata: opts.item.annotationItem.userdata }); //, props: opts.item.annotationItem._paperItem._props});
+    raiseEvent('item-deleted', { item: opts.item });
     // console.log(opts)
     if (opts.item) {
       opts.item.remove();
@@ -270,38 +185,7 @@ const DashPaperdragon = (props) => {
 
   }
 
-
-  function editItem(opts) {
-
-    if (creatingRef.current) {
-      return; // can't edit when you're already creating an item
-    }
-
-    if (editingRef.current) {
-      editingRef.current.selected = false;
-      paperRef.current.rectangleTool.deactivate();
-      const bounds = editingRef.current.bounds;
-      raiseEvent('item-edited', {
-        point: { x: bounds.x, y: bounds.y },
-        size: { width: bounds.width, height: bounds.height },
-        userdata: editingRef.current.annotationItem.userdata,
-        origRef: editingRef.current
-
-      });
-      editingRef.current = null;
-    } else if (opts.item) {
-      editingRef.current = opts.item;
-      opts.item.selected = true;
-      paperRef.current.rectangleTool.activate();
-    }
-
-  }
-
   function newItem(opts) {
-    if (editingRef.current) {
-      return; // can't start a new item when you're editing one already
-    }
-
     if (creatingRef.current) {
       const item = creatingRef.current;
 
@@ -311,10 +195,6 @@ const DashPaperdragon = (props) => {
         console.log('Rectangle aborted');
       } else {
         item.selected = false;
-
-        //To export the item as geojson
-        //item.toGeoJSONFeature();
-
         console.log('Item created', item);
         // makeItem(config.defaultStyle);
         const bounds = item.bounds;
@@ -377,14 +257,7 @@ const DashPaperdragon = (props) => {
     if (item.fillColor) {
       item.fillColor.alpha = item.fillOpacity;
     }
-
-    // Check if item is not undefined before calling applyRescale 
-    if (item && typeof item.applyRescale === 'function') {
-      item.applyRescale();
-    } else {
-      console.error('Item is undefined or does not have an applyRescale method');
-      return;
-    }
+    item.applyRescale();
 
     raiseEvent('property-changed', { item: item.data.userdata, property: prop });
 
@@ -395,10 +268,56 @@ const DashPaperdragon = (props) => {
   }
 
   function dashCallback(action, data) {
-    // console.log('dashCallback', action, data);
+    console.log('dashCallback', action, data);
     setProps({ outputFromPaper: { callback: action.callback, data: data } });
   }
 
+  function getColor(opts) {
+    const mousePos = mousePosRef.current;
+    const tiledImage = tiledImageRef.current;
+    if (!tiledImage) return;
+
+    // Convert image coordinates to viewport coordinates
+    const viewportPoint = tiledImage.imageToViewportCoordinates(mousePos.x, mousePos.y);
+
+    // Convert viewport to viewer element coordinates
+    const viewerCoords = tiledImage.viewer.viewport.viewportToViewerElementCoordinates(viewportPoint);
+
+    // Get the context and device pixel ratio
+    const context = tiledImage.viewer.drawer.canvas.getContext('2d');
+    const r = window.devicePixelRatio || 1;
+
+    // Round the coordinates and scale by device pixel ratio
+    const x = Math.round(viewerCoords.x * r);
+    const y = Math.round(viewerCoords.y * r);
+
+    // Check if coordinates are within bounds
+    const canvas = tiledImage.viewer.drawer.canvas;
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) {
+      return;
+    }
+
+    try {
+      // Get the pixel data
+      const imageData = context.getImageData(x, y, 1, 1).data;
+      const pixelColor = {
+        r: imageData[0],
+        g: imageData[1],
+        b: imageData[2]
+      };
+      setProps({
+        pixelColor: pixelColor
+      });
+
+      // Raise an event for other callbacks
+      raiseEvent('color-grabbed', {
+        color: pixelColor,
+        position: mousePos
+      });
+    } catch (error) {
+      console.error('Error getting pixel color:', error);
+    }
+  }
 
   function createViewer() {
 
@@ -411,6 +330,11 @@ const DashPaperdragon = (props) => {
     const viewer = viewerRef.current = OpenSeadragon({
       id: id,
       prefixUrl: '//openseadragon.github.io/openseadragon/images/', // Update with your image path
+      crossOriginPolicy: 'Anonymous',
+      ajaxWithCredentials: false,
+      loadTilesWithAjax: true,
+      imageLoaderLimit: 5,
+      timeout: 90000,
       /* TO DO: add additional properties like navigator */
     });
 
@@ -440,7 +364,19 @@ const DashPaperdragon = (props) => {
     viewerRef.current.world.addHandler('add-item', async event => {
       const src = event.item.source.tilesUrl || await event.item.source.getTileUrl(0, 0, 0);
       console.log('Opened', src, event);
-      //Removed auto loading of image annotation loading
+      if (typeof src === 'string') {
+        const match = src.match(/(.*api\/+v1)\/+item\/+(.*?)\//i);
+        if (match) {
+          const base = match[1];
+          const itemId = match[2];
+          fetch(`${base}/annotation/item/${itemId}`).then(d => d.json()).then(d => {
+            console.log(`Got annotations for ${itemId}:`, d);
+            for (const annotation of d) {
+              tk.addFeatureCollections(DSAAdapter.dsaToGeoJson(annotation), false, event.item);
+            }
+          })
+        }
+      }
     })
 
     const overlay = overlayRef.current = tk.overlay;
@@ -527,7 +463,7 @@ const DashPaperdragon = (props) => {
 
   function badAction(a) {
     alert('Bad action, see console');
-    console.warn('Bad action:', a);
+    console.warning('Bad action:', a);
   }
 
 
@@ -564,8 +500,7 @@ const DashPaperdragon = (props) => {
 
     // add mouseEnter and mouseLeave handlers
     item.onMouseEnter = event => {
-      //console.log(event)
-      //console.log(`Item is ${event.target.data.fillColor}`);
+      console.log(`Item is ${event.target.data.fillColor}`);
       setProps({ "curShapeObject": event.target.data });
       hoveredItemRef.current = event.target.data;
       executeBoundEvents({ event: 'mouseEnter' }, { item: event.target.data });
@@ -575,9 +510,6 @@ const DashPaperdragon = (props) => {
       hoveredItemRef.current = null;
       executeBoundEvents({ event: 'mouseLeave' }, { item: event.target.data });
     }
-
-    // register the item with the annotation toolkit
-    AnnotationToolkit.registerFeature(item);
 
     return item;
   }
@@ -664,33 +596,27 @@ DashPaperdragon.propTypes = {
   /**
    * sent from dash to update x offset, y offset, rotation, or opacity of the image
    */
+
   tileSourceProps: PropTypes.array,
-  /**  
-  * This is the width of the base image, which is the first image in the tileSources array 
-  */
+  /* This is the width of the base image, which is the first image in the tileSources array */
   baseImageWidth: PropTypes.number,
-  /**
-  *  The width of the viewer in pixels
-  */
+
   viewerWidth: PropTypes.number,
-  /**
-  *  The height of the viewer in pixels
-  */
   viewerHeight: PropTypes.number,
 
-  /**
-   *  This is the last shape object that was hovered over 
-   */
+  /* This is the last shape object that was hovered over */
   curShapeObject: PropTypes.object,
+  /**
+   * The color data from the pixel under the mouse cursor
+   */
+  pixelColor: PropTypes.object,
   /**
    * Dash-assigned callback that should be called to report property changes
    * to Dash, to make them available for callbacks.
    */
-  setProps: PropTypes.func
+  setProps: PropTypes.func,
 };
-/**
- * This is the default Paperdragon class that is exported
- */
+
 export default DashPaperdragon;
 
 
@@ -715,17 +641,4 @@ export default DashPaperdragon;
 // if (rowIndex !== -1) {
 //   // Update the row at the found index with the desired changes
 //   data[rowIndex].columnName = newValue;
-// }
-// if (typeof src === 'string') {
-//   const match = src.match(/(.*api\/+v1)\/+item\/+(.*?)\//i);
-//   if (match) {
-//     const base = match[1];
-//     const itemId = match[2];
-//     fetch(`${base}/annotation/item/${itemId}`).then(d => d.json()).then(d => {
-//       console.log(`Got annotations for ${itemId}:`, d);
-//       for (const annotation of d) {
-//         //   tk.addFeatureCollections(DSAAdapter.dsaToGeoJson(annotation), false, event.item);
-//       }
-//     })
-//   }
 // }
