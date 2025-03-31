@@ -1,5 +1,3 @@
-
-
 var dagfuncs = window.dashAgGridFunctions = window.dashAgGridFunctions || {};
 
 
@@ -9,21 +7,35 @@ var dagfuncs = window.dashAgGridFunctions = window.dashAgGridFunctions || {};
 var dagcomponentfuncs = (window.dashAgGridComponentFunctions = window.dashAgGridComponentFunctions || {});
 
 
+// dagcomponentfuncs.colorCellRenderer = function (props) {
+//     console.log(props);
+//     let color = '';
+//     try {
+//         color = props.value[1] || ''; // Use empty string if props.value[1] is falsy
+//     } catch (error) {
+//         console.error("Error accessing props.value:", error);
+//     }
+//     return React.createElement(
+//         'div',
+//         { style: { backgroundColor: color || 'transparent', width: '100%', height: '100%' } },
+//         null
+//     );
+// }
+
+
 dagcomponentfuncs.colorCellRenderer = function (props) {
-    console.log(props);
-    // TO DO is make this more intelligent
+    // console.log(props); // Remove console.log in production
+    let color = '';
     try {
-        var color = props.value[1]; // props is an array for the palette
+        color = props?.value?.[1] || ''; // Safely access nested properties
     } catch (error) {
-        console.error("Error accessing props.value[1]:", error);
-        var color = "#ff00ff";
+        console.error("Error accessing props.value:", error);
     }
     return React.createElement(
         'div',
-        { style: { backgroundColor: color, width: '100%', height: '100%' } },
+        { style: { backgroundColor: color || 'transparent', width: '100%', height: '100%' } },
         null
     );
-
 }
 
 
@@ -99,4 +111,5 @@ dagfuncs.NumberInput = class {
         return false;
     }
 }
+
 

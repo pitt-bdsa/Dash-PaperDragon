@@ -8,108 +8,73 @@
 tileSources = [
     {
         "label": "TCGA-BF-A1Q0-01A-02-TSB",
-        "value": 0,
         "_id": "5b9f10a8e62914002e956509",
         "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-        "tileSources": [
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f10a8e62914002e956509/tiles/dzi.dzi"
-            }
-        ],
+        "tileSources": [{"tileSourceId": "5b9f10a8e62914002e956509"}],
     },
     {
         "label": "TCGA-2J-AAB4",
-        "value": 1,
         "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
         "_id": "5b9f0d63e62914002e9547f0",
+        "tileSources": [{"tileSourceId": "5b9f0d63e62914002e9547f0"}],
+    },
+    {
+        "label": "TCGA-2J-AAB4-01Z-00-DX1",
+        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
+        "_id": "5b9f0d64e62914002e9547f4",
+        "tileSources": [{"tileSourceId": "5b9f0d64e62914002e9547f4"}],
+    },
+    {
+        "label": "Image stack",
+        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
         "tileSources": [
             {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi"
+                "tileSourceId": "5b9f0d64e62914002e9547f4",
+                "x": 0,
+                "y": 0,
+                "opacity": 1,
+                "layerIdx": 0,
+            },
+            {
+                "tileSourceId": "5b9f0d64e62914002e9547f4",
+                "x": 0.2,
+                "y": 0.2,
+                "opacity": 0.2,
+                "layerIdx": 1,
+            },
+        ],
+    },
+    {
+        "label": "CDG Example",
+        "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
+        "tileSources": [
+            {
+                "tileSourceId": "5b9f0d64e62914002e9547f4",
+                "x": 0,
+                "y": 0,
+                "opacity": 1,
+                "layerIdx": 0,
             }
         ],
     },
-    # {
-    #     "label": "TCGA-2J-AAB4-01Z-00-DX1",
-    #     "value": 1,
-    #     "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-    #     "_id": "5b9f0d64e62914002e9547f4",
-    #     "tileSources": [
-    #         "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi"
-    #     ],
-    # },
-    # {
-    #     "label": "Image stack",
-    #     "value": 2,
-    #     "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-    #     "tileSources": [
-    #         {
-    #             "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-    #             "_id": "5b9f0d64e62914002e9547f4",
-    #             "x": 0,
-    #             "y": 0,
-    #             "opacity": 1,
-    #             "layerIdx": 0,
-    #         },
-    #         {
-    #             "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-    #             "_id": "5b9f0d64e62914002e9547f4",
-    #             "x": 0.2,
-    #             "y": 0.2,
-    #             "opacity": 0.2,
-    #             "layerIdx": 1,
-    #         },
-    #     ],
-    # },
-    # {
-    #     "label": "CDG Example",
-    #     "value": 2,
-    #     "apiUrl": "https://api.digitalslidearchive.org/api/v1/",
-    #     "tileSources": [
-    #         {
-    #             "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-    #             "_id": "5b9f0d64e62914002e9547f4",
-    #             "x": 0,
-    #             "y": 0,
-    #             "opacity": 1,
-    #             "layerIdx": 0,
-    #         }
-    #     ],
-    # },
     {
         "label": "ISIC Example",
-        "value": 3,
         "apiUrl": "https://wsi-deid.pathology.emory.edu/api/v1",
         "tileSources": [
+            {"tileSourceId": "64e767e2309a9ffde668be5e"},
+            {"tileSourceId": "64e767e4309a9ffde668be70"},
+            {"tileSourceId": "64e767e4309a9ffde668be73"},
+            {"tileSourceId": "64e767e1309a9ffde668be4f"},
+            {"tileSourceId": "64e767e1309a9ffde668be58"},
+            {"tileSourceId": "64e767e0309a9ffde668be46"},
+            {"tileSourceId": "64e767df309a9ffde668be43"},
+            {"tileSourceId": "64e767ce309a9ffde668bd77"},
             {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e2309a9ffde668be5e/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e4309a9ffde668be70/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e4309a9ffde668be73/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be4f/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be58/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e0309a9ffde668be46/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767df309a9ffde668be43/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767ce309a9ffde668bd77/tiles/dzi.dzi"
-            },
-            {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767ce309a9ffde668bd7a/tiles/dzi.dzi",
+                "tileSourceId": "64e767ce309a9ffde668bd7a",
                 "opacity": 0.5,
             },
             {
-                "tileSource": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be52/tiles/dzi.dzi",
+                "tileSourceId": "64e767e1309a9ffde668be52",
                 "opacity": 0.5,
             },
         ],

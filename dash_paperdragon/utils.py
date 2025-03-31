@@ -1,9 +1,15 @@
 import math
 import requests
+import random
+import urllib
+import json
 
 ## Define some constants useful for testing and development
 
 globalId = 0
+
+colors = ["red", "orange", "yellow", "green", "blue", "purple"]
+classes = ["a", "b", "c", "d", "e", "f"]
 
 
 CHANNEL_COLORS = [
@@ -316,3 +322,27 @@ def element_to_feature(element):
     }
 
     return f
+
+
+def generate_dsaStyle_string(
+    color: str | None = None, opacity: float | None = None
+) -> str:
+    """Generate a DSA style string.
+
+    Args:
+        color (str, optional): The color to use. Defaults to None.
+        opacity (float, optional): The opacity to use. Defaults to None.
+
+    Returns:
+        str: The encoded style string.
+
+    """
+    if color is None:
+        return {}
+    if opacity is None:
+        opacity = 0.5
+
+    styleData = {"palette": ["#000000", color], "opacity": opacity}
+
+    encodedStyle = urllib.parse.quote_plus(json.dumps(styleData))
+    return encodedStyle
