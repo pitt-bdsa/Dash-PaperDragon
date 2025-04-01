@@ -397,9 +397,16 @@ paperJsShapeColumns = [
     {
         "field": "fillOpacity",
         "headerName": "Opacity",
-        "width": 80,
+        "width": 120,
         "type": "numericColumn",
-        "valueFormatter": "value.toFixed(2)",
+        "editable": True,
+        "cellRenderer": "agSliderCellRenderer",
+        "cellRendererParams": {
+            "minValue": 0,
+            "maxValue": 1,
+            "step": 0.1,
+            "valueFormatter": "value.toFixed(2)",
+        },
     },
     {"field": "x", "headerName": "X", "width": 80, "type": "numericColumn"},
     {"field": "y", "headerName": "Y", "width": 80, "type": "numericColumn"},
@@ -571,6 +578,34 @@ coordinate_display = html.Div(
                                 dbc.CardBody(
                                     [
                                         html.H6("Shape Table", className="mb-2"),
+                                        dbc.Row(
+                                            [
+                                                dbc.Col(
+                                                    [
+                                                        html.Label(
+                                                            "Global Opacity:",
+                                                            className="me-2",
+                                                        ),
+                                                        dcc.Slider(
+                                                            id="global-opacity-slider",
+                                                            min=0,
+                                                            max=1,
+                                                            step=0.1,
+                                                            value=0.2,
+                                                            marks={
+                                                                i / 10: str(i / 10)
+                                                                for i in range(11)
+                                                            },
+                                                            tooltip={
+                                                                "placement": "bottom",
+                                                                "always_visible": True,
+                                                            },
+                                                        ),
+                                                    ],
+                                                    className="mb-2",
+                                                ),
+                                            ],
+                                        ),
                                         dash_ag_grid.AgGrid(
                                             id="shapeDataTable",
                                             columnDefs=paperJsShapeColumns,
@@ -582,22 +617,22 @@ coordinate_display = html.Div(
                                                 "minWidth": 80,
                                             },
                                             style={
-                                                "height": "200px",  # Fixed height
+                                                "height": "200px",
                                                 "width": "100%",
                                             },
                                             dashGridOptions={
                                                 "rowHeight": 35,
                                                 "headerHeight": 35,
                                                 "enableCellTextSelection": True,
-                                                "rowSelection": "single",  # Enable single row selection
+                                                "rowSelection": "single",
                                             },
                                         ),
                                     ],
                                     className="p-2",
-                                ),  # Reduce padding
+                                ),
                             ],
                             className="mb-2",
-                        ),  # Reduce margin
+                        ),
                     ],
                     width=12,
                 ),
@@ -787,24 +822,32 @@ app.layout = dbc.Container(
 ## NEED TO CLEAR THE MESSAGE ONCE THE EVENT FIRES...
 @callback(
     Output("osdShapeData_store", "data"),
-    Input("annotationTable", "selectedRows"),
-    Input("make_random_button", "n_clicks"),
-    Input("make_random_points_button", "n_clicks"),
-    State("imageSelect", "value"),
-    State("osdShapeData_store", "data"),
-    State("osdViewerComponent", "viewportBounds"),
-    State("clearItems-toggle", "value"),
+    [
+        Input("annotationTable", "selectedRows"),
+        Input("make_random_button", "n_clicks"),
+        Input("make_random_points_button", "n_clicks"),
+        Input("global-opacity-slider", "value"),
+        Input("shapeDataTable", "cellValueChanged"),  # Add this input
+    ],
+    [
+        State("imageSelect", "value"),
+        State("osdShapeData_store", "data"),
+        State("osdViewerComponent", "viewportBounds"),
+        State("clearItems-toggle", "value"),
+    ],
 )
 def update_shape_data_store(
     selected_rows,
     make_random_boxesClicked,
     make_random_pointsClicked,
+    global_opacity,
+    cell_changes,
     tileSourceIdx,
     current_shapes,
     viewPortBounds,
     clearItems,
 ):
-    """Central callback that manages the shape data store"""
+    """Central callback that manages all shape data store updates"""
     ctx = callback_context
     if not ctx.triggered:
         return no_update
@@ -815,8 +858,64 @@ def update_shape_data_store(
     if current_shapes is None:
         current_shapes = []
 
+    # Handle individual shape opacity changes
+    if triggered_id == "shapeDataTable":
+        if not cell_changes or not current_shapes:
+            return no_update
+
+        try:
+            # Get the most recent change
+            change = cell_changes[0]
+            if not isinstance(change, dict) or "data" not in change:
+                return no_update
+
+            data = change["data"]
+            if not isinstance(data, dict):
+                return no_update
+
+            # Check if this is an opacity change
+            if "fillOpacity" not in data:
+                return no_update
+
+            # Get the shape ID and new opacity value
+            shape_id = data.get("objectId")
+            new_opacity = float(data.get("fillOpacity", 0.2))
+
+            # Update the shape in the store
+            updated_shapes = []
+            for shape in current_shapes:
+                if shape["userdata"]["objectId"] == shape_id:
+                    # Update the opacity in the shape's args
+                    if "args" in shape and len(shape["args"]) > 0:
+                        shape["args"][0]["fillOpacity"] = new_opacity
+                updated_shapes.append(shape)
+
+            return updated_shapes
+
+        except Exception as e:
+            print(f"Error updating shape opacity: {e}")
+            return no_update
+
+    # Handle global opacity changes
+    elif triggered_id == "global-opacity-slider":
+        if global_opacity is None:
+            return no_update
+
+        try:
+            # Update opacity for all shapes
+            updated_shapes = []
+            for shape in current_shapes:
+                if "args" in shape and len(shape["args"]) > 0:
+                    shape["args"][0]["fillOpacity"] = global_opacity
+                updated_shapes.append(shape)
+            return updated_shapes
+
+        except Exception as e:
+            print(f"Error updating global opacity: {e}")
+            return no_update
+
     # Handle annotation selection
-    if triggered_id == "annotationTable":
+    elif triggered_id == "annotationTable":
         if not selected_rows or not tileSourceIdx:
             return no_update
 
@@ -843,7 +942,6 @@ def update_shape_data_store(
                     )
                     response.raise_for_status()
                     geojson_data = response.json()
-                    print("Fetched GeoJSON data:", geojson_data)  # Debug print
 
                     # Convert to Paper.js format
                     new_shapes = []
@@ -869,8 +967,6 @@ def update_shape_data_store(
                             "strokeWidth": props.get("lineWidth", 2),
                             "fillOpacity": 0.2,
                         }
-
-                        print(f"Shape {shape_id} style:", paper_style)  # Debug print
 
                         # Get the coordinates
                         coords = feature["geometry"]["coordinates"]
@@ -967,7 +1063,7 @@ def update_paper_view(selected_rows, paper_output, shape_data_update, shape_data
         if not full_shape:
             return no_update
 
-        # Calculate the bounds of the shape
+        # Calculate the bounds of the shape based on its type
         if full_shape["paperType"] == "Path.Rectangle":
             # For rectangles, we have point and size
             point = full_shape["args"][0]["point"]
@@ -999,6 +1095,20 @@ def update_paper_view(selected_rows, paper_output, shape_data_update, shape_data
                     "width": 200,
                     "height": 200,
                 }
+        elif full_shape["paperType"] == "Path.Circle":
+            # For circles (points), create bounds around the center
+            center = full_shape["args"][0]["center"]
+            radius = full_shape["args"][0]["radius"]
+            # Create a much larger square bounds around the circle
+            padding = radius * 20  # Increased padding for better visibility
+            bounds = {
+                "x": center["x"] - padding,
+                "y": center["y"] - padding,
+                "width": padding * 2,
+                "height": padding * 2,
+            }
+        else:
+            return no_update
 
         # Add padding to the bounds (10% on each side)
         padding = {"x": bounds["width"] * 0.1, "y": bounds["height"] * 0.1}
@@ -1103,20 +1213,26 @@ def generate_random_points(num_points, bounds):
         px = random.randint(x, x + w)
         py = random.randint(y, y + h)
 
-        instructions = {
-            "paperType": "Path",
+        # Create a circle marker with proper scaling
+        marker = {
+            "paperType": "Path.Circle",
             "args": [
                 {
-                    "segments": [{"point": {"x": px, "y": py}}],
-                    "strokeColor": color,
-                    "strokeWidth": 1000,  # Much larger marker size
+                    "center": {"x": px, "y": py},
+                    "radius": 200,  # Increased from 50 to 200 for better visibility
                     "fillColor": color,
+                    "strokeColor": color,
                     "fillOpacity": 0.8,
+                    "strokeWidth": 4,  # Increased from 2 to 4 for better visibility
+                    "rescale": {
+                        "strokeWidth": 4,  # Match the stroke width
+                        "radius": 200,  # Match the base radius
+                    },
                 }
             ],
             "userdata": userdata,
         }
-        out.append(instructions)
+        out.append(marker)
 
     return out
 

@@ -182,6 +182,10 @@ const DashPaperdragon = (props) => {
     }
     for (const i of list) {
       const item = makeItem(i);
+      // Update fill opacity if specified
+      if (i.args && i.args[0] && i.args[0].fillOpacity !== undefined) {
+        item.fillColor.alpha = i.args[0].fillOpacity;
+      }
       tiledImageRef.current.addPaperItem(item);
     }
   }
@@ -511,7 +515,8 @@ const DashPaperdragon = (props) => {
 
     let item = new constructor(...definition.args);
     if (item.fillColor) {
-      item.fillColor.alpha = item.fillOpacity;
+      // Set initial fill opacity from definition
+      item.fillColor.alpha = definition.args[0].fillOpacity || 0.2;
     }
 
     // bind some extra properties to keep track of where in the array we are, and the original definition of the object
