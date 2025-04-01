@@ -48,6 +48,7 @@ const DashPaperdragon = (props) => {
     newItem,
     getColor,
     zoomToBounds,
+    addTileSource,
   });
 
   function raiseEvent(eventName, data) {
@@ -596,6 +597,25 @@ const DashPaperdragon = (props) => {
 
     // Add a bit of padding (10%) and fit bounds
     viewer.viewport.fitBounds(viewportRect, true);
+  }
+
+  /** Add a new tile source to the viewer */
+  function addTileSource(action) {
+    if (!viewerRef.current) return;
+
+    const source = action.source;
+    const options = {
+      tileSource: source,
+      x: source.x || 0,
+      y: source.y || 0,
+      opacity: source.opacity || 1,
+      rotation: source.rotation || 0,
+      crossOriginPolicy: 'Anonymous',
+      ajaxWithCredentials: false,
+      loadTilesWithAjax: false
+    };
+
+    viewerRef.current.addTiledImage(options);
   }
 
   return (

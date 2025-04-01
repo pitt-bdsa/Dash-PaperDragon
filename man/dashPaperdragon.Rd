@@ -12,7 +12,7 @@
 \usage{
 dashPaperdragon(id=NULL, baseImageWidth=NULL, config=NULL,
 curMousePosition=NULL, curShapeObject=NULL,
-inputToPaper=NULL, outputFromPaper=NULL,
+inputToPaper=NULL, outputFromPaper=NULL, pixelColor=NULL,
 tileSourceProps=NULL, tileSources=NULL, viewerHeight=NULL,
 viewerWidth=NULL, viewportBounds=NULL, zoomLevel=NULL)
 }
@@ -31,6 +31,8 @@ viewerWidth=NULL, viewportBounds=NULL, zoomLevel=NULL)
 \item{inputToPaper}{Named list. data sent from dash to paper}
 
 \item{outputFromPaper}{Named list. data sent from paper back to dash}
+
+\item{pixelColor}{Named list. The color data from the pixel under the mouse cursor}
 
 \item{tileSourceProps}{Unnamed list. sent from dash to update x offset, y offset, rotation, or opacity of the image}
 

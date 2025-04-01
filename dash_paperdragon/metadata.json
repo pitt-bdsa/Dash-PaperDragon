@@ -103,6 +103,13 @@
         "required": false,
         "description": ""
       },
+      "pixelColor": {
+        "type": {
+          "name": "object"
+        },
+        "required": false,
+        "description": "The color data from the pixel under the mouse cursor"
+      },
       "setProps": {
         "type": {
           "name": "func"
