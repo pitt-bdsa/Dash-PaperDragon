@@ -664,7 +664,7 @@ imageSelect_dropdown = html.Div(
             "Select an image",
             className="text-center mb-3",
             style={"marginTop": "5px", "marginRight": "5px"},
-        ),  # "margin-bottom": "5px
+        ),
         dbc.Select(
             id="imageSelect",
             options=[x["label"] for x in tileSources],
@@ -676,11 +676,20 @@ imageSelect_dropdown = html.Div(
             "Make Random Rects",
             id="make_random_button",
             className="m-1 d-inline",
-            style={"marginLeft": "10px", "height": "40px"},  # , "marginTop": "15px"},
+            style={"marginLeft": "10px", "height": "40px"},
         ),
         dbc.Button(
             "Make Random Points",
             id="make_random_points_button",
+            className="m-1 d-inline",
+            style={"marginLeft": "10px", "height": "40px"},
+        ),
+        dbc.Button(
+            "⌨️ Key Bindings",
+            id="show-keybindings",
+            color="secondary",
+            outline=True,
+            size="sm",
             className="m-1 d-inline",
             style={"marginLeft": "10px", "height": "40px"},
         ),
@@ -692,6 +701,62 @@ imageSelect_dropdown = html.Div(
         ),
     ],
     style={"display": "flex", "flexDirection": "row", "align": "center"},
+)
+
+
+# Create the modal for key bindings
+key_bindings_modal = dbc.Modal(
+    [
+        dbc.ModalHeader("Keyboard Shortcuts"),
+        dbc.ModalBody(
+            [
+                html.Table(
+                    [
+                        html.Thead(
+                            html.Tr(
+                                [
+                                    html.Th("Key", style={"width": "100px"}),
+                                    html.Th("Action"),
+                                ]
+                            )
+                        ),
+                        html.Tbody(
+                            [
+                                html.Tr(
+                                    [
+                                        html.Td(html.Kbd(binding["key"])),
+                                        html.Td(
+                                            f"{binding['action']}: {binding.get('property', binding.get('tool', binding.get('callback', '')))}"
+                                        ),
+                                    ]
+                                )
+                                for binding in config["eventBindings"]
+                                if binding["event"] == "keyDown"
+                            ]
+                        ),
+                    ],
+                    className="table table-sm",
+                    style={"fontSize": "0.9em"},
+                ),
+                html.Hr(),
+                html.H6("Mouse Actions", className="mt-3"),
+                html.Ul(
+                    [
+                        html.Li("Click and drag to pan the image"),
+                        html.Li("Scroll wheel to zoom in/out"),
+                        html.Li("Double-click to reset view"),
+                    ],
+                    style={"fontSize": "0.9em"},
+                ),
+            ]
+        ),
+        dbc.ModalFooter(
+            dbc.Button("Close", id="close-keybindings", className="ms-auto")
+        ),
+    ],
+    id="keybindings-modal",
+    size="sm",
+    is_open=False,
 )
 
 
@@ -708,7 +773,8 @@ app.layout = dbc.Container(
                 ),
             ],
         ),
-        dbc.Row([dbc.Col(annotation_panel)]),  # Add the new annotation panel
+        dbc.Row([dbc.Col(annotation_panel)]),
+        key_bindings_modal,  # Add the modal to the layout
     ],
     fluid=True,
 )
@@ -1396,6 +1462,21 @@ def update_annotation_table(tileSourceIdx):
         print("Invalid tile source format")
 
     return []
+
+
+# Add callback to toggle the modal
+@callback(
+    Output("keybindings-modal", "is_open"),
+    [
+        Input("show-keybindings", "n_clicks"),
+        Input("close-keybindings", "n_clicks"),
+    ],
+    [State("keybindings-modal", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
 
 
 if __name__ == "__main__":
