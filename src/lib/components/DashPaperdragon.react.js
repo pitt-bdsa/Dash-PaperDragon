@@ -146,14 +146,29 @@ const DashPaperdragon = (props) => {
   }
 
   function drawDsaAnnotations(action) {
+    console.log("drawDsaAnnotations called with action:", action);
     const list = action.itemList || [];
     if (!list.length) {
-      console.warning('No items were provided in the itemList property');
+      console.warn('No items were provided in the itemList property');
+      return;
     }
 
-    for (const dsa of list) {
-      const geoJson = DSAAdapter.dsaToGeoJson(dsa);
+    // Clear existing annotations first
+    clearItems();
 
+    // Process each annotation
+    for (const annotation of list) {
+      try {
+        console.log("Processing annotation:", annotation);
+        // Convert DSA annotation to GeoJSON
+        const geoJson = DSAAdapter.dsaToGeoJson(annotation);
+        console.log("Converted to GeoJSON:", geoJson);
+
+        // Add the features to the viewer using drawItems
+        drawItems({ itemList: geoJson });
+      } catch (error) {
+        console.error('Error processing annotation:', error);
+      }
     }
   }
 
@@ -360,6 +375,8 @@ const DashPaperdragon = (props) => {
     console.log('Toolkit:', tk);
     toolkitRef.current = tk;
 
+    // Comment out automatic annotation loading
+    /*
     // bind to viewer.world.addItem and load any dsa annotations
     viewerRef.current.world.addHandler('add-item', async event => {
       const src = event.item.source.tilesUrl || await event.item.source.getTileUrl(0, 0, 0);
@@ -378,6 +395,7 @@ const DashPaperdragon = (props) => {
         }
       }
     })
+    */
 
     const overlay = overlayRef.current = tk.overlay;
     // for easier debugging: attach objects to window

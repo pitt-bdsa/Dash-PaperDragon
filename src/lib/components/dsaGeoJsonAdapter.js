@@ -63,10 +63,10 @@ function elementToFeature(element) {
 
         if (e.type == 'polyline' && e.closed == true) {
             g.type = 'MultiPolygon';
-            g.coordinates = [[e.points].concat(e.holes || [])];
+            g.coordinates = [e.points.concat(e.holes || [])];
         } else if (e.type == 'polyline' && e.closed == false) {
             g.type = 'MultiLineString';
-            g.coordinates = [[e.points]];
+            g.coordinates = [e.points];
             g.properties.strokeWidths = [e.lineWidth];
         } else if (e.type == 'arrow') {
             g.type = 'LineString';

@@ -292,11 +292,19 @@ dash_paperdragon/metadata.json
 dash_paperdragon/metadata.json
 rewrite/*
 
-# Build files
+# Build files and source maps
 *.rD
 *.map
-*.dev.js
 *.min.js
+*.dev.js
+*.production.min.js
+*.profiling.min.js
+**/node_modules/**
+**/.venv/**
+**/.pyenv/**
+**/build/**
+**/inst/deps/**
+**/deps/**
 
 # Python
 __pycache__/
@@ -311,3 +319,6 @@ venv/
 # IDE
 .vscode/
 .idea/
+*.backup
+dashPaperDragonHelpers.py.bac
+R/dashPaperdragon.R

@@ -17,6 +17,70 @@ import json, random
 import dash_ag_grid
 from pprint import pprint
 import requests
+from sampleTileSources import tileSources
+import re
+
+
+def get_dsa_image_metadata(api_url, item_id):
+    """Fetch image metadata from DSA server"""
+    try:
+        metadata_url = f"{api_url}/item/{item_id}/tiles"
+        response = requests.get(metadata_url)
+        if response.status_code == 200:
+            metadata = response.json()
+            return {
+                "width": metadata.get("sizeX", 0),
+                "height": metadata.get("sizeY", 0),
+            }
+        else:
+            print(
+                f"Failed to fetch metadata for item {item_id}: {response.status_code}"
+            )
+            return {"width": 0, "height": 0}
+    except Exception as e:
+        print(f"Error fetching metadata: {e}")
+        return {"width": 0, "height": 0}
+
+
+def get_dsa_annotations(api_url, item_id):
+    """Fetch annotations from DSA and convert them to shape format."""
+    try:
+        response = requests.get(f"{api_url}/annotation/item/{item_id}")
+        response.raise_for_status()
+        annotations = response.json()
+
+        shapes = []
+        for annotation in annotations:
+            # Convert DSA annotation to GeoJSON
+            geojson = dsa_to_geo_json(annotation)
+
+            # Process each feature in the GeoJSON
+            for feature in geojson["features"]:
+                shape = {
+                    "id": feature["properties"].get("userdata", {}).get("id", ""),
+                    "type": feature["geometry"]["type"],
+                    "coordinates": feature["geometry"]["coordinates"],
+                    "label": feature["properties"].get("label", ""),
+                    "fillColor": feature["properties"].get("fillColor", "#ff0000"),
+                    "strokeColor": feature["properties"].get("strokeColor", "#000000"),
+                }
+                shapes.append(shape)
+
+        return shapes
+    except Exception as e:
+        print(f"Error fetching DSA annotations: {e}")
+        return []
+
+
+def get_dsa_annotation_list(api_url, item_id):
+    """Fetch list of available annotations for an item from DSA."""
+    try:
+        response = requests.get(f"{api_url}/annotation", params={"itemId": item_id})
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Error fetching annotation list: {e}")
+        return []
 
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -52,163 +116,6 @@ def getId():
 # createItem
 
 
-tileSources = [
-    {
-        "label": "TCGA-2J-AAB4",
-        "value": 0,
-        "tileSources": [
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi",
-            }
-        ],
-    },
-    {
-        "label": "TCGA-BF-A1Q0-01A-02-TSB",
-        "value": 0,
-        "tileSources": [
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f10a8e62914002e956509/tiles/dzi.dzi",
-            }
-        ],
-    },
-    {
-        "label": "TCGA-2J-AAB4-01Z-00-DX1",
-        "value": 1,
-        "tileSources": [
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-            }
-        ],
-    },
-    {
-        "label": "Image stack",
-        "value": 2,
-        "tileSources": [
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-                "x": 0,
-                "y": 0,
-                "opacity": 1,
-                "layerIdx": 0,
-            },
-            {
-                "tileSource": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-                "x": 0.2,
-                "y": 0.2,
-                "opacity": 0.2,
-                "layerIdx": 1,
-            },
-        ],
-    },
-    {
-        "label": "CDG Example",
-        "value": 2,
-        "tileSources": {
-            "type": "image",
-            "url": "https://api.digitalslidearchive.org/api/v1/item/5b9f0d64e62914002e9547f4/tiles/dzi.dzi",
-            "crossOriginPolicy": "Anonymous",
-            "ajaxWithCredentials": False,
-            "x": 0,
-            "y": 0,
-            "opacity": 1,
-            "layerIdx": 0,
-        },
-    },
-    {
-        "label": "ISIC Example",
-        "value": 3,
-        "tileSources": [
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e2309a9ffde668be5e/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e4309a9ffde668be70/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e4309a9ffde668be73/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be4f/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be58/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e0309a9ffde668be46/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767df309a9ffde668be43/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767ce309a9ffde668bd77/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767ce309a9ffde668bd7a/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-            {
-                "type": "image",
-                "url": "https://wsi-deid.pathology.emory.edu/api/v1//item/64e767e1309a9ffde668be52/tiles/dzi.dzi",
-                "crossOriginPolicy": "Anonymous",
-                "ajaxWithCredentials": False,
-            },
-        ],
-    },
-]
-
-
-def get_dsa_image_metadata(dzi_url):
-    """Extract item ID from DZI URL and fetch metadata from DSA server"""
-    try:
-        # Extract item ID from URL like: https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi
-        item_id = dzi_url.split("/item/")[1].split("/")[0]
-        metadata_url = (
-            f"https://api.digitalslidearchive.org/api/v1/item/{item_id}/tiles"
-        )
-
-        response = requests.get(metadata_url)
-        if response.status_code == 200:
-            metadata = response.json()
-            return {
-                "width": metadata.get("sizeX", 0),
-                "height": metadata.get("sizeY", 0),
-            }
-        else:
-            print(
-                f"Failed to fetch metadata for item {item_id}: {response.status_code}"
-            )
-            return {"width": 0, "height": 0}
-    except Exception as e:
-        print(f"Error fetching metadata: {e}")
-        return {"width": 0, "height": 0}
-
-
 # Initialize tileSourceDict with image dimensions
 tileSourceDict = {}
 for source in tileSources:
@@ -220,7 +127,6 @@ for source in tileSources:
         processed_sources = []
         for ts in tile_sources:
             if isinstance(ts, str):
-                metadata = get_dsa_image_metadata(ts)
                 processed_sources.append(
                     {
                         "tileSource": ts,
@@ -228,39 +134,42 @@ for source in tileSources:
                         "y": 0,
                         "opacity": 1,
                         "rotation": 0,
-                        "imageWidth": metadata["width"],
-                        "imageHeight": metadata["height"],
                     }
                 )
             else:
-                metadata = get_dsa_image_metadata(ts.get("tileSource", ""))
+                # Construct tile source URL from API URL and item ID
+                tile_source_url = f"{ts['api_url']}/item/{ts['item_id']}/tiles/dzi.dzi"
                 processed_sources.append(
                     {
-                        **ts,
-                        "imageWidth": metadata["width"],
-                        "imageHeight": metadata["height"],
+                        "tileSource": tile_source_url,
+                        "x": ts.get("x", 0),
+                        "y": ts.get("y", 0),
+                        "opacity": ts.get("opacity", 1),
+                        "rotation": ts.get("rotation", 0),
+                        "layerIdx": ts.get("layerIdx", 0),
                     }
                 )
         tileSourceDict[label] = processed_sources
     else:
         # Handle single tile source
         if isinstance(tile_sources, str):
-            metadata = get_dsa_image_metadata(tile_sources)
             tileSourceDict[label] = {
                 "tileSource": tile_sources,
                 "x": 0,
                 "y": 0,
                 "opacity": 1,
                 "rotation": 0,
-                "imageWidth": metadata["width"],
-                "imageHeight": metadata["height"],
             }
         else:
-            metadata = get_dsa_image_metadata(tile_sources.get("tileSource", ""))
+            # Construct tile source URL from API URL and item ID
+            tile_source_url = f"{tile_sources['api_url']}/item/{tile_sources['item_id']}/tiles/dzi.dzi"
             tileSourceDict[label] = {
-                **tile_sources,
-                "imageWidth": metadata["width"],
-                "imageHeight": metadata["height"],
+                "tileSource": tile_source_url,
+                "x": tile_sources.get("x", 0),
+                "y": tile_sources.get("y", 0),
+                "opacity": tile_sources.get("opacity", 1),
+                "rotation": tile_sources.get("rotation", 0),
+                "layerIdx": tile_sources.get("layerIdx", 0),
             }
 
 
@@ -365,29 +274,41 @@ def convertPaperInstructions_toTableForm(data):
         }
         return flattened_data
     elif data["paperType"] == "Path":
-        # Handle points
+        # Check if it's a polygon (has multiple segments and is closed)
         segments = args.get("segments", [])
-        if not segments:
-            print("No segments found")
-            return None
-
-        point = segments[0].get("point", {})
-        print("Point data:", point)
-
-        flattened_data = {
-            "objectId": data["userdata"]["objectId"],
-            "type": "Point",
-            "fillOpacity": args.get("fillOpacity", 1),
-            "fillColor": args.get("fillColor", ""),
-            "class": data["userdata"]["class"],
-            "strokeColor": args.get("strokeColor", ""),
-            "x": point.get("x"),
-            "y": point.get("y"),
-            "markerSize": args.get("strokeWidth", 10),  # Use strokeWidth as marker size
-            "markerColor": args.get("fillColor", ""),  # Use fillColor as marker color
-        }
-        print("Flattened data:", flattened_data)
-        return flattened_data
+        if len(segments) > 2 and args.get("closed", False):
+            # It's a polygon
+            first_point = segments[0].get("point", {})
+            flattened_data = {
+                "objectId": data["userdata"]["objectId"],
+                "type": data["userdata"].get(
+                    "type", "Polygon"
+                ),  # Use type from userdata or default to Polygon
+                "fillOpacity": args.get("fillOpacity", 0.2),
+                "fillColor": args.get("fillColor", ""),
+                "class": data["userdata"]["class"],
+                "strokeColor": args.get("strokeColor", ""),
+                "x": first_point.get("x"),  # Use first point for reference
+                "y": first_point.get("y"),
+                "vertices": len(segments),  # Add number of vertices
+            }
+            return flattened_data
+        else:
+            # It's a point
+            point = segments[0].get("point", {})
+            flattened_data = {
+                "objectId": data["userdata"]["objectId"],
+                "type": "Point",
+                "fillOpacity": args.get("fillOpacity", 1),
+                "fillColor": args.get("fillColor", ""),
+                "class": data["userdata"]["class"],
+                "strokeColor": args.get("strokeColor", ""),
+                "x": point.get("x"),
+                "y": point.get("y"),
+                "markerSize": args.get("strokeWidth", 10),
+                "markerColor": args.get("fillColor", ""),
+            }
+            return flattened_data
     elif data["paperType"] == "Path.Circle":
         # Handle circle markers
         center = args.get("center", {})
@@ -403,9 +324,8 @@ def convertPaperInstructions_toTableForm(data):
             "markerSize": args.get("radius", 10),
             "markerColor": args.get("fillColor", ""),
         }
-        print("Flattened data:", flattened_data)
         return flattened_data
-    ## TO DO: process segments
+    return None
 
 
 # First, define the column definitions
@@ -566,10 +486,30 @@ coordinate_display = html.Div(
                         dbc.CardBody(
                             [
                                 html.H6("Highlighted Object", className="mb-1"),
-                                html.Div(id="curObject_disp", className="card-text"),
-                            ]
+                                html.Div(
+                                    id="curObject_disp",
+                                    className="card-text",
+                                    style={
+                                        "overflowY": "auto",
+                                        "maxHeight": "2rem",  # Adjusted height for content
+                                        "whiteSpace": "pre-wrap",
+                                        "wordBreak": "break-all",
+                                        "fontSize": "0.9em",
+                                        "cursor": "pointer",
+                                        "padding": "2px 4px",
+                                        "border": "1px solid transparent",  # For hover effect
+                                        "transition": "all 0.2s ease",  # Smooth transition for hover
+                                        "backgroundColor": "rgba(0,0,0,0.02)",  # Slight background
+                                        "borderRadius": "4px",  # Rounded corners
+                                    },
+                                ),
+                            ],
+                            style={"padding": "0.5rem"},  # Reduce padding in card body
                         ),
-                        className="mb-1",
+                        style={
+                            "height": "3.5rem",  # Fixed card height
+                            "minWidth": "200px",  # Ensure minimum width
+                        },
                     ),
                     width=4,
                 ),
@@ -666,6 +606,57 @@ coordinate_display = html.Div(
     className="no-right-margin g-0",
 )
 
+annotation_panel = html.Div(
+    [
+        dbc.Card(
+            [
+                dbc.CardBody(
+                    [
+                        html.H6("Available Annotations", className="mb-2"),
+                        dash_ag_grid.AgGrid(
+                            id="annotationTable",
+                            columnDefs=[
+                                {"field": "name", "headerName": "Name", "width": 200},
+                                {
+                                    "field": "description",
+                                    "headerName": "Description",
+                                    "width": 300,
+                                },
+                                {
+                                    "field": "created",
+                                    "headerName": "Created",
+                                    "width": 150,
+                                },
+                                {
+                                    "field": "updated",
+                                    "headerName": "Updated",
+                                    "width": 150,
+                                },
+                            ],
+                            rowData=[],
+                            defaultColDef={
+                                "resizable": True,
+                                "sortable": True,
+                                "filter": True,
+                            },
+                            style={"height": "200px", "width": "100%"},
+                            dashGridOptions={
+                                "rowHeight": 35,
+                                "headerHeight": 35,
+                                "enableCellTextSelection": True,
+                                "rowSelection": "single",  # Enable single row selection
+                            },
+                        ),
+                    ],
+                    className="p-2",
+                ),
+            ],
+            className="mb-2",
+        ),
+    ],
+    style={"width": "100%"},  # Changed from width prop to style prop
+)
+
 
 imageSelect_dropdown = html.Div(
     [
@@ -677,7 +668,7 @@ imageSelect_dropdown = html.Div(
         dbc.Select(
             id="imageSelect",
             options=[x["label"] for x in tileSources],
-            value="Image stack",
+            value="TCGA-BF-A1Q0-01A-02-TSB",
             className="mb-4 d-inline",
             style={"width": "300px", "marginLleft": "10px", "marginTop": "1px"},
         ),
@@ -717,6 +708,7 @@ app.layout = dbc.Container(
                 ),
             ],
         ),
+        dbc.Row([dbc.Col(annotation_panel)]),  # Add the new annotation panel
     ],
     fluid=True,
 )
@@ -727,118 +719,183 @@ app.layout = dbc.Container(
 
 ## NEED TO CLEAR THE MESSAGE ONCE THE EVENT FIRES...
 @callback(
-    Output("osdViewerComponent", "inputToPaper", allow_duplicate=True),
     Output("osdShapeData_store", "data"),
-    Output("osdViewerComponent", "outputFromPaper"),
-    Input("osdViewerComponent", "outputFromPaper"),
+    Input("annotationTable", "selectedRows"),
     Input("make_random_button", "n_clicks"),
     Input("make_random_points_button", "n_clicks"),
-    State("osdViewerComponent", "viewportBounds"),
+    State("imageSelect", "value"),
     State("osdShapeData_store", "data"),
+    State("osdViewerComponent", "viewportBounds"),
     State("clearItems-toggle", "value"),
-    prevent_initial_call=True,
 )
-def handleOutputFromPaper(
-    paperOutput,
+def update_shape_data_store(
+    selected_rows,
     make_random_boxesClicked,
     make_random_pointsClicked,
+    tileSourceIdx,
+    current_shapes,
     viewPortBounds,
-    currentShapeData,
     clearItems,
 ):
+    """Central callback that manages the shape data store"""
     ctx = callback_context
     if not ctx.triggered:
-        return no_update, no_update, {}
+        return no_update
 
-    triggered_prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    if triggered_prop_id == "osdViewerComponent":
-        osdEventType = paperOutput.get("data", {}).get("callback", None)
+    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    # Initialize current_shapes if None
+    if current_shapes is None:
+        current_shapes = []
+
+    # Handle annotation selection
+    if triggered_id == "annotationTable":
+        if not selected_rows or not tileSourceIdx:
+            return no_update
+
+        # Get the selected annotation
+        selected_ann = selected_rows[0]
+
+        # Get the tile source
+        tile_source = tileSourceDict[tileSourceIdx]
+        if isinstance(tile_source, list):
+            tile_source = tile_source[0]
+
+        # Extract API URL and item ID
+        if isinstance(tile_source, dict) and "tileSource" in tile_source:
+            tile_url = tile_source["tileSource"]
+            match = re.match(r"(.*api/v1)/item/(.*?)/tiles/dzi.dzi", tile_url)
+            if match:
+                api_url = match.group(1)
+                item_id = match.group(2)
+
+                try:
+                    # Fetch the annotation data
+                    response = requests.get(
+                        f"{api_url}/annotation/{selected_ann['_id']}/geojson"
+                    )
+                    response.raise_for_status()
+                    geojson_data = response.json()
+                    print("Fetched GeoJSON data:", geojson_data)  # Debug print
+
+                    # Convert to Paper.js format
+                    new_shapes = []
+                    for feature in geojson_data.get("features", []):
+                        props = feature.get("properties", {})
+                        shape_id = props.get("id", "")
+
+                        # Get colors from DSA properties, with fallbacks
+                        fill_color = props.get("fillColor")
+                        if not fill_color or fill_color == "rgba(0, 0, 0, 0)":
+                            fill_color = props.get("color", "rgba(255, 0, 0, 0.2)")
+
+                        stroke_color = props.get("lineColor")
+                        if not stroke_color:
+                            stroke_color = props.get(
+                                "strokeColor", props.get("color", "rgb(255, 0, 0)")
+                            )
+
+                        # Map DSA properties to Paper.js properties
+                        paper_style = {
+                            "fillColor": fill_color,
+                            "strokeColor": stroke_color,
+                            "strokeWidth": props.get("lineWidth", 2),
+                            "fillOpacity": 0.2,
+                        }
+
+                        print(f"Shape {shape_id} style:", paper_style)  # Debug print
+
+                        # Get the coordinates
+                        coords = feature["geometry"]["coordinates"]
+                        if feature["geometry"]["type"] == "Polygon":
+                            points = coords[0]
+                            shape = {
+                                "paperType": "Path",
+                                "args": [
+                                    {
+                                        "segments": [
+                                            {"point": {"x": p[0], "y": p[1]}}
+                                            for p in points
+                                        ],
+                                        "closed": True,
+                                        **paper_style,
+                                    }
+                                ],
+                                "userdata": {
+                                    "class": "a",
+                                    "objectId": getId(),
+                                    "dsaId": shape_id,
+                                    "type": props.get("type", "polygon"),
+                                },
+                            }
+                            new_shapes.append(shape)
+
+                    return current_shapes + new_shapes if not clearItems else new_shapes
+
+                except Exception as e:
+                    print(f"Error loading annotation: {e}")
+                    return no_update
+
+    # Handle random shape generation
+    elif triggered_id in ["make_random_button", "make_random_points_button"]:
+        if triggered_id == "make_random_button":
+            new_shapes = generate_random_boxes(3, viewPortBounds)
+        else:
+            new_shapes = generate_random_points(3, viewPortBounds)
+
+        return current_shapes + new_shapes if not clearItems else new_shapes
+
+    return no_update
+
+
+@callback(
+    Output("osdViewerComponent", "inputToPaper"),
+    Input("osdShapeData_store", "data"),
+    Input("osdViewerComponent", "outputFromPaper"),
+)
+def update_paper_from_store(shape_data, paper_output):
+    """Callback that updates Paper.js based on shape data store changes"""
+    ctx = callback_context
+    if not ctx.triggered:
+        return no_update
+
+    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    # Handle Paper.js events
+    if triggered_id == "osdViewerComponent":
+        if not paper_output:
+            return no_update
+
+        osdEventType = paper_output.get("data", {}).get("callback", None)
         if not osdEventType:
-            osdEventType = paperOutput.get("callback", None)
+            osdEventType = paper_output.get("callback", None)
 
         if osdEventType == "grabColor":
-            # Changed from sampleColor to getColor
-            return {"actions": [{"type": "getColor"}]}, no_update, {}
-        elif osdEventType == "colorGrabbed":
-            # Handle the grabbed color data
-            print("Color grabbed:", paperOutput.get("data", {}).get("color"))
-            return no_update, no_update, {}
-        elif osdEventType in ["mouseLeave", "mouseEnter"]:
-            # print("MOUSE ENTER TRIGGERED")
-            # print(paperOutput)  # curObject_disp
-            return no_update, no_update, {}
-        elif osdEventType == "createItem":
-            # print(paperOutput["data"])
-
-            si = get_box_instructions(
-                paperOutput["data"]["point"]["x"],
-                paperOutput["data"]["point"]["y"],
-                paperOutput["data"]["size"]["width"],
-                paperOutput["data"]["size"]["height"],
-                colors[0],
-                {"class": classes[0]},
-            )
-            currentShapeData.append(si)
-
-            return createItem(paperOutput["data"]), currentShapeData, {}
-        elif osdEventType == "propertyChanged":
-            ### Handle property change.. probably class change but could be color or other thing in the future
-            # print(paperOutput["data"])
-            # print(changedProp, "is the changedProp")
-            ## TO DO--- THIS IS NOT CONSISTENTLY FIRING ON EVERY CHANGE..
-
-            changedProp = paperOutput.get("data", {}).get("property", "")
-            if changedProp == "class":
-                newClass = paperOutput.get("data", {}).get("item", {}).get("class", "")
-                objectId = (
-                    paperOutput.get("data", {}).get("item", {}).get("objectId", "")
-                )
-                for r in currentShapeData:
-                    if r["userdata"]["objectId"] == objectId:
-                        r["userdata"]["class"] = newClass
-                        print("Changed object class to", newClass)
-                        break
-                return no_update, currentShapeData, {}
+            return {"actions": [{"type": "getColor"}]}
+        elif osdEventType in ["mouseLeave", "mouseEnter", "colorGrabbed"]:
+            return no_update
         elif osdEventType == "itemDeleted":
-            print(paperOutput["data"]["item"])
-            itemId = paperOutput["data"]["item"][1]["data"]["userdata"]["objectId"]
-            print("Item Deleted", itemId)
-            currentShapeData = [
-                x for x in currentShapeData if x["userdata"]["objectId"] != itemId
+            # Handle item deletion
+            return {
+                "actions": [
+                    {"type": "clearItems"},
+                    {"type": "drawItems", "itemList": shape_data},
+                ]
+            }
+
+    # Handle shape data store changes
+    elif triggered_id == "osdShapeData_store":
+        if shape_data is None:
+            return no_update
+
+        return {
+            "actions": [
+                {"type": "clearItems"},
+                {"type": "drawItems", "itemList": shape_data},
             ]
-            return no_update, currentShapeData, {}
-            ### TO DO-- CLARIFY FROM TOM WHAT THE DELETEITEM callback should return in the react component
+        }
 
-            ## Note the class is changing, but that also changes the color... will need to think about how to keep all this stuff in sync
-        else:
-            print("Unhandled osdEventType", osdEventType)
-            print(paperOutput, "is the paperOutput")
-
-    elif triggered_prop_id in ["make_random_button", "make_random_points_button"]:
-        if triggered_prop_id == "make_random_button":
-            shapesToAdd = generate_random_boxes(3, viewPortBounds)
-        else:
-            shapesToAdd = generate_random_points(3, viewPortBounds)
-
-        inputToPaper = {"actions": []}
-
-        if clearItems:
-            inputToPaper["actions"].append({"type": "clearItems"})
-            inputToPaper["actions"].append(
-                {"type": "drawItems", "itemList": shapesToAdd}
-            )
-            return inputToPaper, shapesToAdd, {}
-        else:
-            inputToPaper["actions"].append(
-                {"type": "drawItems", "itemList": shapesToAdd}
-            )
-            currentShapeData = currentShapeData + shapesToAdd
-            return inputToPaper, currentShapeData, {}
-
-    else:
-        print(triggered_prop_id, "was the triggered prop")
-
-    return no_update, no_update, {}
+    return no_update
 
 
 def get_box_instructions(x, y, w, h, color, userdata={}):
@@ -1039,6 +1096,7 @@ def updateShapeDataTable(shapeData):
 
 @callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
 def update_imageSrc(tileSourceIdx):
+    print("update_imageSrc called with:", tileSourceIdx)
     newTileSource = tileSourceDict[tileSourceIdx]
     return newTileSource
 
@@ -1103,7 +1161,7 @@ def update_tileSourceTable(tileSourceIdx):
     Output("imgScrControls_data", "children"),
     Output("osdViewerComponent", "tileSourceProps"),
     Input("tileSourceTable", "cellValueChanged"),
-    State("tileSourceTable", "rowData"),
+    State("tileSourceTable", "rowData"),  # Add state to get all row data
 )
 def process_tileSource_changes(changes, all_row_data):
     if not changes:
@@ -1117,26 +1175,32 @@ def process_tileSource_changes(changes, all_row_data):
             if isinstance(change, dict) and "data" in change:
                 data = change["data"]
                 if isinstance(data, dict):
+                    # Get the layer index and ensure it's an integer
+                    layer_idx = int(data.get("layer", 0))
+                    print(f"Processing change for layer {layer_idx}")  # Debug log
+
                     # Create props for all layers to maintain their state
                     all_props = []
                     for row in all_row_data:
                         layer_data = row
                         original_opacity = float(layer_data.get("opacity", 1))
                         is_visible = bool(layer_data.get("visible", True))
-                        pixel_width = float(layer_data.get("pixelWidth", 1))
-                        pixel_height = float(layer_data.get("pixelHeight", 1))
+                        pixel_width = float(layer_data.get("pixelWidth", 10000))
+                        pixel_height = float(layer_data.get("pixelHeight", 8000))
+
+                        # Convert pixel offsets back to relative coordinates
                         x_offset = float(layer_data.get("x_offset", 0))
                         y_offset = float(layer_data.get("y_offset", 0))
-
-                        # Convert pixel offsets to relative coordinates
                         rel_x = x_offset / pixel_width if pixel_width else 0
                         rel_y = y_offset / pixel_height if pixel_height else 0
 
                         props = {
                             "index": int(layer_data.get("layer", 0)),
-                            "x": rel_x,
+                            "x": rel_x,  # Use relative coordinates for OpenSeadragon
                             "y": rel_y,
-                            "opacity": 0 if not is_visible else original_opacity,
+                            "opacity": (
+                                0 if not is_visible else original_opacity
+                            ),  # Set opacity to 0 if not visible
                             "rotation": float(layer_data.get("rotation", 0)),
                             "visible": is_visible,
                             "width": float(layer_data.get("width", 1)),
@@ -1162,13 +1226,25 @@ def process_tileSource_changes(changes, all_row_data):
 
 
 @callback(
-    Output("curObject_disp", "children"), Input("osdViewerComponent", "curShapeObject")
+    Output("curObject_disp", "children"),
+    Output("curObject_disp", "style"),
+    Input("osdViewerComponent", "curShapeObject"),
 )
 def update_curShapeObject(curShapeObject):
+    base_style = {
+        "overflowY": "auto",
+        "maxHeight": "2rem",
+        "whiteSpace": "pre-wrap",
+        "wordBreak": "break-all",
+        "fontSize": "0.9em",
+        "padding": "2px 4px",
+        "backgroundColor": "rgba(0,0,0,0.02)",
+        "borderRadius": "4px",
+    }
+
     if curShapeObject:
-        return json.dumps(curShapeObject.get("userdata", {}))
-    else:
-        return no_update
+        return json.dumps(curShapeObject.get("userdata", {})), base_style
+    return "No object selected", base_style
 
 
 @callback(Output("color_disp", "children"), Input("osdViewerComponent", "pixelColor"))
@@ -1269,6 +1345,57 @@ def mouseEnter(args):
 
 def colorGrabbed(args):
     return None  # or handle the color grabbed event if needed
+
+
+# Add a callback to update the annotation table when image selection changes
+@callback(
+    Output("annotationTable", "rowData"),
+    Input("imageSelect", "value"),
+)
+def update_annotation_table(tileSourceIdx):
+    print("update_annotation_table called with:", tileSourceIdx)
+    if not tileSourceIdx:
+        print("No tileSourceIdx provided")
+        return []
+
+    # Get the selected tile source
+    tile_source = tileSourceDict[tileSourceIdx]
+    if isinstance(tile_source, list):
+        # For image stack, use the first source
+        tile_source = tile_source[0]
+        print("Using first source from image stack:", tile_source)
+
+    # Extract API URL and item ID from the tile source URL
+    if isinstance(tile_source, dict) and "tileSource" in tile_source:
+        tile_url = tile_source["tileSource"]
+        print("Processing tile URL:", tile_url)
+        match = re.match(r"(.*api/v1)/item/(.*?)/tiles/dzi.dzi", tile_url)
+        if match:
+            api_url = match.group(1)
+            item_id = match.group(2)
+            print(f"Found API URL: {api_url}, Item ID: {item_id}")
+            annotations = get_dsa_annotation_list(api_url, item_id)
+            print(f"Found {len(annotations)} annotations")
+
+            # Format the annotations for display
+            formatted_annotations = []
+            for ann in annotations:
+                formatted_annotations.append(
+                    {
+                        "name": ann.get("name", ""),
+                        "description": ann.get("description", ""),
+                        "created": ann.get("created", ""),
+                        "updated": ann.get("updated", ""),
+                        "_id": ann.get("_id", ""),  # Add the _id field for selection
+                    }
+                )
+            return formatted_annotations
+        else:
+            print("No match found in tile URL pattern")
+    else:
+        print("Invalid tile source format")
+
+    return []
 
 
 if __name__ == "__main__":
