@@ -589,6 +589,7 @@ coordinate_display = html.Div(
                                                 "rowHeight": 35,
                                                 "headerHeight": 35,
                                                 "enableCellTextSelection": True,
+                                                "rowSelection": "single",  # Enable single row selection
                                             },
                                         ),
                                     ],
@@ -916,19 +917,100 @@ def update_shape_data_store(
 
 @callback(
     Output("osdViewerComponent", "inputToPaper"),
-    Input("osdShapeData_store", "data"),
-    Input("osdViewerComponent", "outputFromPaper"),
+    [
+        Input("shapeDataTable", "selectedRows"),
+        Input("osdViewerComponent", "outputFromPaper"),
+        Input("osdShapeData_store", "data"),  # Add shape data store as input
+    ],
+    [
+        State("osdShapeData_store", "data"),
+    ],
 )
-def update_paper_from_store(shape_data, paper_output):
-    """Callback that updates Paper.js based on shape data store changes"""
+def update_paper_view(selected_rows, paper_output, shape_data_update, shape_data):
+    """Unified callback to handle shape selection, paper events, and shape data updates"""
     ctx = callback_context
     if not ctx.triggered:
         return no_update
 
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
+    # Handle shape data store changes
+    if triggered_id == "osdShapeData_store":
+        if not shape_data_update:
+            return no_update
+
+        return {
+            "actions": [
+                {"type": "clearItems"},
+                {"type": "drawItems", "itemList": shape_data_update},
+            ]
+        }
+
+    # Handle shape table selection
+    if triggered_id == "shapeDataTable":
+        if not selected_rows or not shape_data:
+            return no_update
+
+        selected_shape = selected_rows[0]
+        shape_id = selected_shape.get("objectId")
+
+        # Find the full shape data for the selected shape
+        full_shape = next(
+            (
+                shape
+                for shape in shape_data
+                if shape["userdata"]["objectId"] == shape_id
+            ),
+            None,
+        )
+
+        if not full_shape:
+            return no_update
+
+        # Calculate the bounds of the shape
+        if full_shape["paperType"] == "Path.Rectangle":
+            # For rectangles, we have point and size
+            point = full_shape["args"][0]["point"]
+            size = full_shape["args"][0]["size"]
+            bounds = {
+                "x": point["x"],
+                "y": point["y"],
+                "width": size["width"],
+                "height": size["height"],
+            }
+        elif full_shape["paperType"] == "Path":
+            # For paths/polygons, calculate bounds from segments
+            segments = full_shape["args"][0].get("segments", [])
+            if segments:
+                x_coords = [seg["point"]["x"] for seg in segments]
+                y_coords = [seg["point"]["y"] for seg in segments]
+                bounds = {
+                    "x": min(x_coords),
+                    "y": min(y_coords),
+                    "width": max(x_coords) - min(x_coords),
+                    "height": max(y_coords) - min(y_coords),
+                }
+            else:
+                # For points, create a small bounds around the point
+                point = segments[0]["point"]
+                bounds = {
+                    "x": point["x"] - 100,
+                    "y": point["y"] - 100,
+                    "width": 200,
+                    "height": 200,
+                }
+
+        # Add padding to the bounds (10% on each side)
+        padding = {"x": bounds["width"] * 0.1, "y": bounds["height"] * 0.1}
+        bounds["x"] -= padding["x"]
+        bounds["y"] -= padding["y"]
+        bounds["width"] += padding["x"] * 2
+        bounds["height"] += padding["y"] * 2
+
+        return {"actions": [{"type": "zoomToBounds", "bounds": bounds}]}
+
     # Handle Paper.js events
-    if triggered_id == "osdViewerComponent":
+    elif triggered_id == "osdViewerComponent":
         if not paper_output:
             return no_update
 
@@ -940,26 +1022,6 @@ def update_paper_from_store(shape_data, paper_output):
             return {"actions": [{"type": "getColor"}]}
         elif osdEventType in ["mouseLeave", "mouseEnter", "colorGrabbed"]:
             return no_update
-        elif osdEventType == "itemDeleted":
-            # Handle item deletion
-            return {
-                "actions": [
-                    {"type": "clearItems"},
-                    {"type": "drawItems", "itemList": shape_data},
-                ]
-            }
-
-    # Handle shape data store changes
-    elif triggered_id == "osdShapeData_store":
-        if shape_data is None:
-            return no_update
-
-        return {
-            "actions": [
-                {"type": "clearItems"},
-                {"type": "drawItems", "itemList": shape_data},
-            ]
-        }
 
     return no_update
 

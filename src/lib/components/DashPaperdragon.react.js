@@ -47,6 +47,7 @@ const DashPaperdragon = (props) => {
     dashCallback,
     newItem,
     getColor,
+    zoomToBounds,
   });
 
   function raiseEvent(eventName, data) {
@@ -562,6 +563,34 @@ const DashPaperdragon = (props) => {
       }
     }
     return true;
+  }
+
+  // Add the zoomToBounds function
+  function zoomToBounds(action) {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    const bounds = action.bounds;
+    if (!bounds) {
+      console.warn('No bounds provided for zoomToBounds action');
+      return;
+    }
+
+    // Convert image coordinates to viewport coordinates
+    const tiledImage = viewer.world.getItemAt(0);
+    if (!tiledImage) return;
+
+    // Convert the bounds to viewport coordinates
+    const viewportBounds = new OpenSeadragon.Rect(
+      bounds.x,
+      bounds.y,
+      bounds.width,
+      bounds.height
+    );
+    const viewportRect = tiledImage.imageToViewportRectangle(viewportBounds);
+
+    // Add a bit of padding (10%) and fit bounds
+    viewer.viewport.fitBounds(viewportRect, true);
   }
 
   return (
