@@ -5,16 +5,14 @@ from dash.development.base_component import Component, _explicitize_args
 
 class DashPaperdragon(Component):
     """A DashPaperdragon component.
-OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer
+
 
 Keyword arguments:
 
 - id (string; optional):
     The ID used to identify this component in Dash callbacks.
 
-- baseImageWidth (number; optional):
-    This is the width of the base image, which is the first image in
-    the tileSources array.
+- baseImageWidth (number; optional)
 
 - config (dict; optional):
     config is a dictionary of options for setting up the component and
@@ -23,8 +21,7 @@ Keyword arguments:
 - curMousePosition (dict; optional):
     Current Mouse Position in Image Coordinates.
 
-- curShapeObject (dict; optional):
-    This is the last shape object that was hovered over.
+- curShapeObject (dict; optional)
 
 - inputToPaper (dict; optional):
     data sent from dash to paper.
@@ -33,15 +30,7 @@ Keyword arguments:
     data sent from paper back to dash.
 
 - pixelColor (dict; optional):
-    The color of the pixel under the mouse cursor.
-
-    `pixelColor` is a dict with keys:
-
-    - b (number; optional)
-
-    - g (number; optional)
-
-    - r (number; optional)
+    The color data from the pixel under the mouse cursor.
 
 - tileSourceProps (list; optional):
     sent from dash to update x offset, y offset, rotation, or opacity
@@ -50,11 +39,9 @@ Keyword arguments:
 - tileSources (string | list; optional):
     the tile source for openseadragon.
 
-- viewerHeight (number; optional):
-    The height of the viewer in pixels.
+- viewerHeight (number; optional)
 
-- viewerWidth (number; optional):
-    The width of the viewer in pixels.
+- viewerWidth (number; optional)
 
 - viewportBounds (dict; optional):
     viewportBounds of the current OSD Viewer.
@@ -66,7 +53,7 @@ Keyword arguments:
     _namespace = 'dash_paperdragon'
     _type = 'DashPaperdragon'
     @_explicitize_args
-    def __init__(self, id=Component.UNDEFINED, config=Component.UNDEFINED, tileSources=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, curMousePosition=Component.UNDEFINED, viewportBounds=Component.UNDEFINED, outputFromPaper=Component.UNDEFINED, inputToPaper=Component.UNDEFINED, tileSourceProps=Component.UNDEFINED, baseImageWidth=Component.UNDEFINED, viewerWidth=Component.UNDEFINED, viewerHeight=Component.UNDEFINED, pixelColor=Component.UNDEFINED, curShapeObject=Component.UNDEFINED, **kwargs):
+    def __init__(self, id=Component.UNDEFINED, config=Component.UNDEFINED, tileSources=Component.UNDEFINED, zoomLevel=Component.UNDEFINED, curMousePosition=Component.UNDEFINED, viewportBounds=Component.UNDEFINED, outputFromPaper=Component.UNDEFINED, inputToPaper=Component.UNDEFINED, tileSourceProps=Component.UNDEFINED, baseImageWidth=Component.UNDEFINED, viewerWidth=Component.UNDEFINED, viewerHeight=Component.UNDEFINED, curShapeObject=Component.UNDEFINED, pixelColor=Component.UNDEFINED, **kwargs):
         self._prop_names = ['id', 'baseImageWidth', 'config', 'curMousePosition', 'curShapeObject', 'inputToPaper', 'outputFromPaper', 'pixelColor', 'tileSourceProps', 'tileSources', 'viewerHeight', 'viewerWidth', 'viewportBounds', 'zoomLevel']
         self._valid_wildcard_attributes =            []
         self.available_properties = ['id', 'baseImageWidth', 'config', 'curMousePosition', 'curShapeObject', 'inputToPaper', 'outputFromPaper', 'pixelColor', 'tileSourceProps', 'tileSources', 'viewerHeight', 'viewerWidth', 'viewportBounds', 'zoomLevel']

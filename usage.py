@@ -313,18 +313,71 @@ def convertPaperInstructions_toTableForm(data):
     ## TO DO: process segments
 
 
+# First, define the column definitions
+tileSourceColumns = [
+    {"field": "layer", "headerName": "Layer", "width": 70, "maxWidth": 70},
+    {
+        "field": "visible",
+        "headerName": "Visible",
+        "width": 80,
+        "cellRenderer": "agCheckboxCellRenderer",
+        "editable": True,
+    },
+    {
+        "field": "width",
+        "headerName": "Width",
+        "width": 80,
+        "type": "numericColumn",
+        "editable": True,
+    },
+    {
+        "field": "height",
+        "headerName": "Height",
+        "width": 80,
+        "type": "numericColumn",
+        "editable": True,
+    },
+    {
+        "field": "x",
+        "headerName": "X",
+        "width": 80,
+        "type": "numericColumn",
+        "editable": True,
+    },
+    {
+        "field": "y",
+        "headerName": "Y",
+        "width": 80,
+        "type": "numericColumn",
+        "editable": True,
+    },
+    {
+        "field": "opacity",
+        "headerName": "Opacity",
+        "width": 90,
+        "type": "numericColumn",
+        "editable": True,
+        "valueFormatter": "value.toFixed(2)",
+    },
+    {
+        "field": "rotation",
+        "headerName": "Rot",
+        "width": 70,
+        "type": "numericColumn",
+        "editable": True,
+    },
+]
+
 paperJsShapeColumns = [
-    {"field": "objectId", "headerName": "objId", "width": 80, "sortable": True},
-    {"field": "type", "headerName": "Type", "width": 120},
-    {"field": "fillOpacity", "headerName": "fill %", "width": 80},
-    {"field": "fillColor", "width": 100},
+    {"field": "objectId", "headerName": "ID", "width": 70, "maxWidth": 70},
+    {"field": "type", "headerName": "Type", "width": 90},
+    {"field": "fillOpacity", "headerName": "Fill %", "width": 80},
+    {"field": "fillColor", "width": 90},
     {"field": "class", "width": 80},
-    {"field": "strokeColor"},
-    {"field": "rotation"},
-    {"field": "x"},
-    {"field": "y"},
-    {"field": "width"},
-    {"field": "height"},
+    {"field": "x", "width": 80, "type": "numericColumn"},
+    {"field": "y", "width": 80, "type": "numericColumn"},
+    {"field": "width", "width": 80, "type": "numericColumn"},
+    {"field": "height", "width": 80, "type": "numericColumn"},
 ]
 
 ## Create element
@@ -344,139 +397,166 @@ osdElement = dash_paperdragon.DashPaperdragon(
 ## Make HTML layout
 coordinate_display = html.Div(
     [
-        dbc.Row([dbc.Col(html.H2("Zoom and Mouse Position"), className="mb-2")]),
         dbc.Row(
             [
                 dbc.Col(
                     dbc.Card(
-                        [
-                            dbc.CardBody(
-                                [
-                                    html.H5("Zoom Level", className="card-title"),
-                                    html.Div(
-                                        id="zoomLevel_disp", className="card-text"
-                                    ),
-                                ]
-                            )
-                        ],
+                        dbc.CardBody(
+                            [
+                                html.H6("Zoom Level", className="mb-1"),
+                                html.Div(id="zoomLevel_disp", className="card-text"),
+                            ]
+                        ),
                         className="mb-1",
                     ),
                     width=4,
                 ),
                 dbc.Col(
                     dbc.Card(
-                        [
-                            dbc.CardBody(
-                                [
-                                    html.H5("Viewport Bounds", className="card-title"),
-                                    html.Div(
-                                        id="viewportBounds_disp", className="card-text"
-                                    ),
-                                ]
-                            )
-                        ],
+                        dbc.CardBody(
+                            [
+                                html.H6("Viewport Bounds", className="mb-1"),
+                                html.Div(
+                                    id="viewportBounds_disp", className="card-text"
+                                ),
+                            ]
+                        ),
                         className="mb-1",
                     ),
                     width=8,
                 ),
+            ],
+            className="g-2",  # Reduce gap between cards
+        ),
+        dbc.Row(
+            [
                 dbc.Col(
                     dbc.Card(
-                        [
-                            dbc.CardBody(
-                                [
-                                    html.H6("Mouse Position", className="card-title"),
-                                    html.Div(id="mousePos_disp", className="card-text"),
-                                ]
-                            )
-                        ],
-                        className="img-control-grid",
+                        dbc.CardBody(
+                            [
+                                html.H6("Mouse Position", className="mb-1"),
+                                html.Div(id="mousePos_disp", className="card-text"),
+                            ]
+                        ),
                         style={"height": "3.5rem"},
                     ),
                     width=4,
                 ),
                 dbc.Col(
                     dbc.Card(
-                        [
-                            dbc.CardBody(
-                                [
-                                    html.H6("Selected Color", className="card-title"),
-                                    html.Div(id="color_disp", className="card-text"),
-                                ]
-                            )
-                        ],
-                        className="img-control-grid",
+                        dbc.CardBody(
+                            [
+                                html.H6("Selected Color", className="mb-1"),
+                                html.Div(id="color_disp", className="card-text"),
+                            ]
+                        ),
                         style={"height": "3.5rem"},
                     ),
                     width=4,
                 ),
                 dbc.Col(
                     dbc.Card(
-                        [
-                            dbc.CardBody(
-                                [
-                                    html.H6(
-                                        "Highlighted Object", className="card-title"
-                                    ),
-                                    html.Div(
-                                        id="curObject_disp", className="card-text"
-                                    ),
-                                ]
-                            )
-                        ],
-                        className="mb-1 img-control-card",
+                        dbc.CardBody(
+                            [
+                                html.H6("Highlighted Object", className="mb-1"),
+                                html.Div(id="curObject_disp", className="card-text"),
+                            ]
+                        ),
+                        className="mb-1",
                     ),
-                    width=8,
+                    width=4,
+                ),
+            ],
+            className="g-2",
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dbc.Card(
+                            [
+                                dbc.CardBody(
+                                    [
+                                        html.H6(
+                                            "Tile Source Properties", className="mb-2"
+                                        ),
+                                        html.Div(id="imgScrControls_data"),
+                                        dash_ag_grid.AgGrid(
+                                            id="tileSourceTable",
+                                            columnDefs=tileSourceColumns,
+                                            rowData=[],
+                                            defaultColDef={
+                                                "resizable": True,
+                                                "sortable": True,
+                                                "filter": True,
+                                                "editable": True,
+                                            },
+                                            style={
+                                                "height": "150px",  # Fixed height
+                                                "width": "100%",
+                                            },
+                                            dashGridOptions={
+                                                "rowHeight": 35,
+                                                "headerHeight": 35,
+                                                "enableCellTextSelection": True,
+                                                "stopEditingWhenCellsLoseFocus": True,
+                                                "enterMovesDown": False,
+                                                "enterMovesDownAfterEdit": False,
+                                            },
+                                        ),
+                                    ],
+                                    className="p-2",
+                                ),  # Reduce padding
+                            ],
+                            className="mb-2",
+                        ),  # Reduce margin
+                    ],
+                    width=12,
                 ),
             ]
         ),
         dbc.Row(
-            dbc.Card(
-                [
-                    dbc.CardBody(
-                        [
-                            html.H5("Tile Source Properties", className="card-title"),
-                            html.Div(id="osdTileProperties", className="card-text"),
-                            html.Div(id="imgScrControls_data", className="card-text"),
-                        ]
-                    )
-                ],
-                className="img-control-card",
-            )
-        ),
-        dbc.Row(
-            dbc.Card(
-                [
-                    dbc.CardBody(
-                        [
-                            html.H5("Shape Table", className="card-title text-center"),
-                            dash_ag_grid.AgGrid(
-                                id="shapeDataTable",
-                                columnDefs=paperJsShapeColumns,
-                                columnSizeOptions={"defaultMaxWidth": 200},
-                                # columnSize="sizeToFit",
-                                defaultColDef={
-                                    "resizable": True,
-                                    "sortable": True,
-                                    "defaultMaxWidth": 150,
-                                },
-                                style={"height": "300px"},
-                            ),
-                        ],
-                        style={
-                            "margin": "0px",
-                            "padding": "0px",
-                            "margin-bottom": "10px",
-                            # "height": "200px",
-                        },
-                    )
-                ],
-                className="img-control-card",
-                style={"height": "100px"},
-            )
+            [
+                dbc.Col(
+                    [
+                        dbc.Card(
+                            [
+                                dbc.CardBody(
+                                    [
+                                        html.H6("Shape Table", className="mb-2"),
+                                        dash_ag_grid.AgGrid(
+                                            id="shapeDataTable",
+                                            columnDefs=paperJsShapeColumns,
+                                            rowData=[],
+                                            defaultColDef={
+                                                "resizable": True,
+                                                "sortable": True,
+                                                "filter": True,
+                                                "minWidth": 80,
+                                            },
+                                            style={
+                                                "height": "200px",  # Fixed height
+                                                "width": "100%",
+                                            },
+                                            dashGridOptions={
+                                                "rowHeight": 35,
+                                                "headerHeight": 35,
+                                                "enableCellTextSelection": True,
+                                            },
+                                        ),
+                                    ],
+                                    className="p-2",
+                                ),  # Reduce padding
+                            ],
+                            className="mb-2",
+                        ),  # Reduce margin
+                    ],
+                    width=12,
+                ),
+            ]
         ),
     ],
     className="no-right-margin g-0",
-    # style={"display": "flex", "flex-direction": "row"},
 )
 
 
@@ -802,84 +882,36 @@ def get_color_from_pixel(color_data):
     return "#000000"
 
 
+# Update the tile source properties display function
 def generateImgSrcControlPanel(tileSource, idx):
     if isinstance(tileSource, str):
-        tileSource = {"tileSource": tileSource, "x": 0, "y": 0, "opacity": 1}
+        tileSource = {
+            "tileSource": tileSource,
+            "x": 0,
+            "y": 0,
+            "opacity": 1,
+            "rotation": 0,
+        }
 
-    return html.Div(
-        [
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            html.Div(
-                                f"Layer {idx} ",
-                                className="small",
-                            ),
-                            html.Div(
-                                [
-                                    html.Label("X Offset"),
-                                    dcc.Input(
-                                        id={"type": "x", "index": idx},
-                                        type="number",
-                                        value=tileSource.get("x", 0),
-                                        style={"width": "70px"},
-                                    ),
-                                ],
-                                className="mr-3",
-                            ),
-                            html.Div(
-                                [
-                                    html.Label("Y Offset"),
-                                    dcc.Input(
-                                        id={"type": "y", "index": idx},
-                                        type="number",
-                                        value=tileSource.get("y", 0),
-                                        style={"width": "70px"},
-                                    ),
-                                ],
-                                className="mr-3",
-                            ),
-                            html.Div(
-                                [
-                                    html.Label("Opacity"),
-                                    dcc.Slider(
-                                        id={"type": "opacity", "index": idx},
-                                        min=0,
-                                        max=1,
-                                        step=0.05,
-                                        marks={
-                                            0: "0",
-                                            0.5: "0.5",
-                                            1: "1",
-                                        },
-                                        value=tileSource.get("opacity", 1),
-                                        className="slider",
-                                    ),
-                                ],
-                                className="mr-3",
-                                style={"textAlign": "center"},
-                            ),
-                            html.Div(
-                                [
-                                    html.Label("Rotation"),
-                                    dcc.Input(
-                                        id={"type": "rotation", "index": idx},
-                                        type="number",
-                                        value=tileSource.get("rotation", 0),
-                                        style={"width": "70px"},
-                                    ),
-                                ],
-                                className="mr-3",
-                            ),
-                        ],
-                        className="d-flex",
-                    ),
-                ],
-                className="mr-3",
-            ),
+    return dash_ag_grid.AgGrid(
+        id={"type": "tileSource-grid", "index": idx},
+        columnDefs=tileSourceColumns,
+        rowData=[
+            {
+                "layer": idx,
+                "x": tileSource.get("x", 0),
+                "y": tileSource.get("y", 0),
+                "opacity": tileSource.get("opacity", 1),
+                "rotation": tileSource.get("rotation", 0),
+            }
         ],
-        className="mb-4",
+        defaultColDef={
+            "resizable": True,
+            "sortable": True,
+            "filter": True,
+        },
+        style={"height": "52px"},  # Just enough for one row
+        dashGridOptions={"domLayout": "autoHeight"},
     )
 
 
@@ -898,65 +930,114 @@ def updateShapeDataTable(shapeData):
     return flattened_data
 
 
-@callback(Output("osdTileProperties", "children"), Input("imageSelect", "value"))
-def createTileSourceControls(tileSourceIdx):
-    newTileSources = tileSourceDict.get(tileSourceIdx, None)
-    imgSrcControls = []
+@callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
+def update_imageSrc(tileSourceIdx):
+    newTileSource = tileSourceDict[tileSourceIdx]
+    return newTileSource
 
-    # Handle cases of both single channel and multi-channel images
-    if isinstance(newTileSources, list):
-        for idx, tileSource in enumerate(newTileSources):
-            imgSrcControls.append(generateImgSrcControlPanel(tileSource, idx))
-    else:
-        imgSrcControls.append(generateImgSrcControlPanel(newTileSources, 0))
 
-    return imgSrcControls
+@callback(Output("tileSourceTable", "rowData"), Input("imageSelect", "value"))
+def update_tileSourceTable(tileSourceIdx):
+    tileSources = tileSourceDict[tileSourceIdx]
+    if not isinstance(tileSources, list):
+        tileSources = [tileSources]
+
+    rowData = []
+    for idx, source in enumerate(tileSources):
+        if isinstance(source, str):
+            rowData.append(
+                {
+                    "layer": idx,
+                    "visible": True,  # Default to visible
+                    "width": 1,  # Default scale
+                    "height": 1,  # Default scale
+                    "x": 0,
+                    "y": 0,
+                    "opacity": 1,
+                    "rotation": 0,
+                }
+            )
+        else:
+            rowData.append(
+                {
+                    "layer": idx,
+                    "visible": source.get(
+                        "visible", True
+                    ),  # Get existing visibility or default to True
+                    "width": source.get(
+                        "width", 1
+                    ),  # Get existing width or default to 1
+                    "height": source.get(
+                        "height", 1
+                    ),  # Get existing height or default to 1
+                    "x": source.get("x", 0),
+                    "y": source.get("y", 0),
+                    "opacity": source.get("opacity", 1),
+                    "rotation": source.get("rotation", 0),
+                }
+            )
+    return rowData
 
 
 # ### Detect changes in xOffset, yOffset, and opacity
 @callback(
     Output("imgScrControls_data", "children"),
     Output("osdViewerComponent", "tileSourceProps"),
-    Input({"type": "x", "index": ALL}, "value"),
-    Input({"type": "y", "index": ALL}, "value"),
-    Input({"type": "opacity", "index": ALL}, "value"),
-    Input({"type": "rotation", "index": ALL}, "value"),
+    Input("tileSourceTable", "cellValueChanged"),
+    State("tileSourceTable", "rowData"),  # Add state to get all row data
 )
-def process_tileSource_changes(x, y, opacity, rotation):
-    ctx = callback_context
-    if not ctx.triggered:
-        return no_update
+def process_tileSource_changes(changes, all_row_data):
+    if not changes:
+        return no_update, no_update
 
-    # Transform the complex array to the specified format
-    transformed_array = []
-    indexes = set()
+    try:
+        # Transform grid changes into tile source properties
+        if isinstance(changes, list) and len(changes) > 0:
+            # Get the most recent change
+            change = changes[0]
+            if isinstance(change, dict) and "data" in change:
+                data = change["data"]
+                if isinstance(data, dict):
+                    # Get the layer index and ensure it's an integer
+                    layer_idx = int(data.get("layer", 0))
+                    print(f"Processing change for layer {layer_idx}")  # Debug log
 
-    complex_array = ctx.inputs_list
+                    # Create props for all layers to maintain their state
+                    all_props = []
+                    for row in all_row_data:
+                        layer_data = row
+                        original_opacity = float(layer_data.get("opacity", 1))
+                        is_visible = bool(layer_data.get("visible", True))
 
-    # First, gather all unique indexes to create a template for the dictionaries
-    for group in complex_array:
-        for item in group:
-            indexes.add(item["id"]["index"])
+                        props = {
+                            "index": int(layer_data.get("layer", 0)),
+                            "x": float(layer_data.get("x", 0)),
+                            "y": float(layer_data.get("y", 0)),
+                            "opacity": (
+                                0 if not is_visible else original_opacity
+                            ),  # Set opacity to 0 if not visible
+                            "rotation": float(layer_data.get("rotation", 0)),
+                            "visible": is_visible,
+                            "width": float(layer_data.get("width", 1)),
+                            "height": float(layer_data.get("height", 1)),
+                        }
+                        all_props.append(props)
+                        print(f"Layer {props['index']} props: {props}")  # Debug log
 
-    # Initialize dictionaries for each index
-    for index in indexes:
-        transformed_array.append({"index": index})
+                    return html.Div(), all_props
+                else:
+                    print("Unexpected data format:", data)
+                    return no_update, no_update
+            else:
+                print("Unexpected change format:", change)
+                return no_update, no_update
+        else:
+            print("Unexpected changes format:", changes)
+            return no_update, no_update
 
-    # Populate the dictionaries with values from the complex array
-    for group in complex_array:
-        for item in group:
-            index = item["id"]["index"]
-            type_ = item["id"]["type"]
-            value = item["value"]
-            # Find the dictionary with the matching index and update it with the new value
-            for dict_ in transformed_array:
-                if dict_["index"] == index:
-                    dict_[type_] = value
-
-    ## This controls whether the text version for transformed array is displayed on the screen
-    # print(transformed_array)
-    # return json.dumps(transformed_array), transformed_array
-    return no_update, transformed_array
+    except Exception as e:
+        print("Error processing tile source changes:", e)
+        return no_update, no_update
 
 
 @callback(
@@ -1023,12 +1104,6 @@ def update_color_display(color_data):
     return "No color selected"
 
 
-@callback(Output("osdViewerComponent", "tileSources"), Input("imageSelect", "value"))
-def update_imageSrc(tileSourceIdx):
-    newTileSource = tileSourceDict[tileSourceIdx]
-    return newTileSource
-
-
 def createItem(data):
     # cprint("createItem", data)
     # print("Some how called this?")
@@ -1080,7 +1155,7 @@ if __name__ == "__main__":
 
 
 # Create a callback to update the opacity property when the slider value changes
-# @app.callback(
+# @callback(
 #     [Output({'type': 'slider', 'index': i}, 'value') for i in range(len(data))],
 #     [Input({'type': 'slider', 'index': i}, 'value') for i in range(len(data))]
 # )
