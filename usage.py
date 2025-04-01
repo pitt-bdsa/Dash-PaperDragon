@@ -16,6 +16,7 @@ import dash_bootstrap_components as dbc
 import json, random
 import dash_ag_grid
 from pprint import pprint
+import requests
 
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -181,7 +182,86 @@ tileSources = [
     },
 ]
 
-tileSourceDict = {x["label"]: x["tileSources"] for x in tileSources}
+
+def get_dsa_image_metadata(dzi_url):
+    """Extract item ID from DZI URL and fetch metadata from DSA server"""
+    try:
+        # Extract item ID from URL like: https://api.digitalslidearchive.org/api/v1/item/5b9f0d63e62914002e9547f0/tiles/dzi.dzi
+        item_id = dzi_url.split("/item/")[1].split("/")[0]
+        metadata_url = (
+            f"https://api.digitalslidearchive.org/api/v1/item/{item_id}/tiles"
+        )
+
+        response = requests.get(metadata_url)
+        if response.status_code == 200:
+            metadata = response.json()
+            return {
+                "width": metadata.get("sizeX", 0),
+                "height": metadata.get("sizeY", 0),
+            }
+        else:
+            print(
+                f"Failed to fetch metadata for item {item_id}: {response.status_code}"
+            )
+            return {"width": 0, "height": 0}
+    except Exception as e:
+        print(f"Error fetching metadata: {e}")
+        return {"width": 0, "height": 0}
+
+
+# Initialize tileSourceDict with image dimensions
+tileSourceDict = {}
+for source in tileSources:
+    label = source["label"]
+    tile_sources = source["tileSources"]
+
+    if isinstance(tile_sources, list):
+        # Handle multiple tile sources
+        processed_sources = []
+        for ts in tile_sources:
+            if isinstance(ts, str):
+                metadata = get_dsa_image_metadata(ts)
+                processed_sources.append(
+                    {
+                        "tileSource": ts,
+                        "x": 0,
+                        "y": 0,
+                        "opacity": 1,
+                        "rotation": 0,
+                        "imageWidth": metadata["width"],
+                        "imageHeight": metadata["height"],
+                    }
+                )
+            else:
+                metadata = get_dsa_image_metadata(ts.get("tileSource", ""))
+                processed_sources.append(
+                    {
+                        **ts,
+                        "imageWidth": metadata["width"],
+                        "imageHeight": metadata["height"],
+                    }
+                )
+        tileSourceDict[label] = processed_sources
+    else:
+        # Handle single tile source
+        if isinstance(tile_sources, str):
+            metadata = get_dsa_image_metadata(tile_sources)
+            tileSourceDict[label] = {
+                "tileSource": tile_sources,
+                "x": 0,
+                "y": 0,
+                "opacity": 1,
+                "rotation": 0,
+                "imageWidth": metadata["width"],
+                "imageHeight": metadata["height"],
+            }
+        else:
+            metadata = get_dsa_image_metadata(tile_sources.get("tileSource", ""))
+            tileSourceDict[label] = {
+                **tile_sources,
+                "imageWidth": metadata["width"],
+                "imageHeight": metadata["height"],
+            }
 
 
 config = {
@@ -276,9 +356,7 @@ def convertPaperInstructions_toTableForm(data):
             "fillColor": args["fillColor"],
             "class": data["userdata"]["class"],
             "strokeColor": args["strokeColor"],
-            "rotation": args.get(
-                "rotation"
-            ),  # Use .get() to avoid KeyError if 'rotation' is not present
+            "rotation": args.get("rotation"),
             "x": args["point"]["x"],
             "y": args["point"]["y"],
             "width": args["size"]["width"],
@@ -290,94 +368,123 @@ def convertPaperInstructions_toTableForm(data):
         # Handle points
         segments = args.get("segments", [])
         if not segments:
-            print("No segments found")  # Debug print
+            print("No segments found")
             return None
 
         point = segments[0].get("point", {})
-        print("Point data:", point)  # Debug print
+        print("Point data:", point)
 
         flattened_data = {
             "objectId": data["userdata"]["objectId"],
             "type": "Point",
-            "fillOpacity": 1,
+            "fillOpacity": args.get("fillOpacity", 1),
             "fillColor": args.get("fillColor", ""),
             "class": data["userdata"]["class"],
             "strokeColor": args.get("strokeColor", ""),
             "x": point.get("x"),
             "y": point.get("y"),
-            "width": args.get("strokeWidth", 1000),
-            "height": args.get("strokeWidth", 1000),
+            "markerSize": args.get("strokeWidth", 10),  # Use strokeWidth as marker size
+            "markerColor": args.get("fillColor", ""),  # Use fillColor as marker color
         }
-        print("Flattened data:", flattened_data)  # Debug print
+        print("Flattened data:", flattened_data)
+        return flattened_data
+    elif data["paperType"] == "Path.Circle":
+        # Handle circle markers
+        center = args.get("center", {})
+        flattened_data = {
+            "objectId": data["userdata"]["objectId"],
+            "type": "Point",
+            "fillOpacity": args.get("fillOpacity", 1),
+            "fillColor": args.get("fillColor", ""),
+            "class": data["userdata"]["class"],
+            "strokeColor": args.get("strokeColor", ""),
+            "x": center.get("x"),
+            "y": center.get("y"),
+            "markerSize": args.get("radius", 10),
+            "markerColor": args.get("fillColor", ""),
+        }
+        print("Flattened data:", flattened_data)
         return flattened_data
     ## TO DO: process segments
 
 
 # First, define the column definitions
 tileSourceColumns = [
-    {"field": "layer", "headerName": "Layer", "width": 70, "maxWidth": 70},
+    {"field": "layer", "headerName": "Layer", "width": 90},
     {
         "field": "visible",
         "headerName": "Visible",
-        "width": 80,
+        "width": 90,
         "cellRenderer": "agCheckboxCellRenderer",
         "editable": True,
     },
     {
-        "field": "width",
-        "headerName": "Width",
-        "width": 80,
+        "field": "x_offset",
+        "headerName": "X Offset (px)",
+        "width": 120,
         "type": "numericColumn",
         "editable": True,
     },
     {
-        "field": "height",
-        "headerName": "Height",
-        "width": 80,
-        "type": "numericColumn",
-        "editable": True,
-    },
-    {
-        "field": "x",
-        "headerName": "X",
-        "width": 80,
-        "type": "numericColumn",
-        "editable": True,
-    },
-    {
-        "field": "y",
-        "headerName": "Y",
-        "width": 80,
+        "field": "y_offset",
+        "headerName": "Y Offset (px)",
+        "width": 120,
         "type": "numericColumn",
         "editable": True,
     },
     {
         "field": "opacity",
         "headerName": "Opacity",
-        "width": 90,
+        "width": 100,
         "type": "numericColumn",
         "editable": True,
-        "valueFormatter": "value.toFixed(2)",
+        "valueFormatter": {"function": "params => params.value.toFixed(2)"},
     },
     {
         "field": "rotation",
-        "headerName": "Rot",
-        "width": 70,
+        "headerName": "Rotation",
+        "width": 100,
         "type": "numericColumn",
         "editable": True,
+    },
+    {
+        "field": "pixelWidth",
+        "headerName": "Image Width",
+        "width": 120,
+        "type": "numericColumn",
+        "editable": False,
+        "valueFormatter": {
+            "function": "params => params.value.toLocaleString() + ' px'"
+        },
+    },
+    {
+        "field": "pixelHeight",
+        "headerName": "Image Height",
+        "width": 120,
+        "type": "numericColumn",
+        "editable": False,
+        "valueFormatter": {
+            "function": "params => params.value.toLocaleString() + ' px'"
+        },
     },
 ]
 
 paperJsShapeColumns = [
     {"field": "objectId", "headerName": "ID", "width": 70, "maxWidth": 70},
     {"field": "type", "headerName": "Type", "width": 90},
-    {"field": "fillOpacity", "headerName": "Fill %", "width": 80},
-    {"field": "fillColor", "width": 90},
-    {"field": "class", "width": 80},
-    {"field": "x", "width": 80, "type": "numericColumn"},
-    {"field": "y", "width": 80, "type": "numericColumn"},
-    {"field": "width", "width": 80, "type": "numericColumn"},
-    {"field": "height", "width": 80, "type": "numericColumn"},
+    {"field": "class", "headerName": "Class", "width": 80},
+    {"field": "fillColor", "headerName": "Color", "width": 90},
+    {
+        "field": "fillOpacity",
+        "headerName": "Opacity",
+        "width": 80,
+        "type": "numericColumn",
+        "valueFormatter": "value.toFixed(2)",
+    },
+    {"field": "x", "headerName": "X", "width": 80, "type": "numericColumn"},
+    {"field": "y", "headerName": "Y", "width": 80, "type": "numericColumn"},
+    {"field": "markerSize", "headerName": "Size", "width": 80, "type": "numericColumn"},
+    {"field": "markerColor", "headerName": "Marker Color", "width": 90},
 ]
 
 ## Create element
@@ -565,12 +672,12 @@ imageSelect_dropdown = html.Div(
         html.Label(
             "Select an image",
             className="text-center mb-3",
-            style={"margin-top": "5px", "margin-right": "5px"},
+            style={"marginTop": "5px", "marginRight": "5px"},
         ),  # "margin-bottom": "5px
         dbc.Select(
             id="imageSelect",
             options=[x["label"] for x in tileSources],
-            value=tileSources[0]["label"],
+            value="Image stack",
             className="mb-4 d-inline",
             style={"width": "300px", "marginLleft": "10px", "marginTop": "1px"},
         ),
@@ -593,7 +700,7 @@ imageSelect_dropdown = html.Div(
             className="mt-2 d-inline",
         ),
     ],
-    style={"display": "flex", "flex-direction": "row", "align": "center"},
+    style={"display": "flex", "flexDirection": "row", "align": "center"},
 )
 
 
@@ -799,7 +906,6 @@ def generate_random_boxes(num_points, bounds):
 
 def generate_random_points(num_points, bounds):
     out = []
-
     x = int(bounds["x"])
     w = int(bounds["width"])
     y = int(bounds["y"])
@@ -818,8 +924,9 @@ def generate_random_points(num_points, bounds):
                 {
                     "segments": [{"point": {"x": px, "y": py}}],
                     "strokeColor": color,
-                    "strokeWidth": 1000,  # Much bigger
+                    "strokeWidth": 1000,  # Much larger marker size
                     "fillColor": color,
+                    "fillOpacity": 0.8,
                 }
             ],
             "userdata": userdata,
@@ -955,25 +1062,37 @@ def update_tileSourceTable(tileSourceIdx):
                     "y": 0,
                     "opacity": 1,
                     "rotation": 0,
+                    "pixelWidth": 0,  # Will be updated when image loads
+                    "pixelHeight": 0,  # Will be updated when image loads
+                    "x_offset": 0,  # Will be calculated from x * pixelWidth
+                    "y_offset": 0,  # Will be calculated from y * pixelHeight
                 }
             )
         else:
+            # Get the relative coordinates and image dimensions
+            rel_x = source.get("x", 0)
+            rel_y = source.get("y", 0)
+            pixel_width = source.get("imageWidth", 0)
+            pixel_height = source.get("imageHeight", 0)
+
+            # Calculate pixel offsets using the correct dimensions
+            x_offset = int(rel_x * pixel_width) if pixel_width else 0  # x uses width
+            y_offset = int(rel_y * pixel_height) if pixel_height else 0  # y uses height
+
             rowData.append(
                 {
                     "layer": idx,
-                    "visible": source.get(
-                        "visible", True
-                    ),  # Get existing visibility or default to True
-                    "width": source.get(
-                        "width", 1
-                    ),  # Get existing width or default to 1
-                    "height": source.get(
-                        "height", 1
-                    ),  # Get existing height or default to 1
-                    "x": source.get("x", 0),
-                    "y": source.get("y", 0),
+                    "visible": source.get("visible", True),
+                    "width": source.get("width", 1),
+                    "height": source.get("height", 1),
+                    "x": rel_x,  # Keep the relative coordinates for internal use
+                    "y": rel_y,
                     "opacity": source.get("opacity", 1),
                     "rotation": source.get("rotation", 0),
+                    "pixelWidth": pixel_width,
+                    "pixelHeight": pixel_height,
+                    "x_offset": x_offset,  # Add pixel-based offsets
+                    "y_offset": y_offset,
                 }
             )
     return rowData
@@ -984,7 +1103,7 @@ def update_tileSourceTable(tileSourceIdx):
     Output("imgScrControls_data", "children"),
     Output("osdViewerComponent", "tileSourceProps"),
     Input("tileSourceTable", "cellValueChanged"),
-    State("tileSourceTable", "rowData"),  # Add state to get all row data
+    State("tileSourceTable", "rowData"),
 )
 def process_tileSource_changes(changes, all_row_data):
     if not changes:
@@ -998,24 +1117,26 @@ def process_tileSource_changes(changes, all_row_data):
             if isinstance(change, dict) and "data" in change:
                 data = change["data"]
                 if isinstance(data, dict):
-                    # Get the layer index and ensure it's an integer
-                    layer_idx = int(data.get("layer", 0))
-                    print(f"Processing change for layer {layer_idx}")  # Debug log
-
                     # Create props for all layers to maintain their state
                     all_props = []
                     for row in all_row_data:
                         layer_data = row
                         original_opacity = float(layer_data.get("opacity", 1))
                         is_visible = bool(layer_data.get("visible", True))
+                        pixel_width = float(layer_data.get("pixelWidth", 1))
+                        pixel_height = float(layer_data.get("pixelHeight", 1))
+                        x_offset = float(layer_data.get("x_offset", 0))
+                        y_offset = float(layer_data.get("y_offset", 0))
+
+                        # Convert pixel offsets to relative coordinates
+                        rel_x = x_offset / pixel_width if pixel_width else 0
+                        rel_y = y_offset / pixel_height if pixel_height else 0
 
                         props = {
                             "index": int(layer_data.get("layer", 0)),
-                            "x": float(layer_data.get("x", 0)),
-                            "y": float(layer_data.get("y", 0)),
-                            "opacity": (
-                                0 if not is_visible else original_opacity
-                            ),  # Set opacity to 0 if not visible
+                            "x": rel_x,
+                            "y": rel_y,
+                            "opacity": 0 if not is_visible else original_opacity,
                             "rotation": float(layer_data.get("rotation", 0)),
                             "visible": is_visible,
                             "width": float(layer_data.get("width", 1)),
@@ -1180,8 +1301,6 @@ if __name__ == "__main__":
 #         # print("CSD-->", currentShapeData)
 #         return inputToPaper, currentShapeData
 #         # inputToShapreDataStore = currentShapeData
-
-#     # currentShapeData.append()
 
 # if make_random_boxesClicked and not paperOutput.get("callback"):
 #     # bounds = paperOutput.get("viewportBounds")

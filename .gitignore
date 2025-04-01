@@ -290,3 +290,24 @@ R/internal.R
 Project.toml
 dash_paperdragon/metadata.json
 dash_paperdragon/metadata.json
+rewrite/*
+
+# Build files
+*.rD
+*.map
+*.dev.js
+*.min.js
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+.pyenv/
+
+# IDE
+.vscode/
+.idea/
