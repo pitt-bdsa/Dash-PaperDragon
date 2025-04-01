@@ -19,6 +19,27 @@ from pprint import pprint
 import requests
 from sampleTileSources import tileSources
 import re
+from dashPaperDragonHelpers import (
+    generate_random_checkerboard,
+    get_box_instructions,
+    generate_random_boxes,
+    generate_random_points,
+    get_color_from_pixel,
+    generateImgSrcControlPanel,
+    generate_key_bindings_modal,
+    generate_annotation_panel,
+    convertPaperInstructions_toTableForm,
+    get_dsa_image_metadata,
+    get_dsa_annotations,
+    get_dsa_annotation_list,
+    createItem,
+    deleteItem,
+    itemDeleted,
+    propertyChanged,
+    mouseLeave,
+    mouseEnter,
+    colorGrabbed,
+)
 
 
 def get_dsa_image_metadata(api_url, item_id):
@@ -252,82 +273,6 @@ callbacks = {
 }
 
 
-def convertPaperInstructions_toTableForm(data):
-    print("Converting data:", data)  # Debug print
-    args = data.get("args", [])
-    if args:
-        args = args[0]
-
-    if data["paperType"] == "Path.Rectangle":
-        flattened_data = {
-            "objectId": data["userdata"]["objectId"],
-            "fillOpacity": args["fillOpacity"],
-            "fillColor": args["fillColor"],
-            "class": data["userdata"]["class"],
-            "strokeColor": args["strokeColor"],
-            "rotation": args.get("rotation"),
-            "x": args["point"]["x"],
-            "y": args["point"]["y"],
-            "width": args["size"]["width"],
-            "height": args["size"]["height"],
-            "type": "Rectangle",
-        }
-        return flattened_data
-    elif data["paperType"] == "Path":
-        # Check if it's a polygon (has multiple segments and is closed)
-        segments = args.get("segments", [])
-        if len(segments) > 2 and args.get("closed", False):
-            # It's a polygon
-            first_point = segments[0].get("point", {})
-            flattened_data = {
-                "objectId": data["userdata"]["objectId"],
-                "type": data["userdata"].get(
-                    "type", "Polygon"
-                ),  # Use type from userdata or default to Polygon
-                "fillOpacity": args.get("fillOpacity", 0.2),
-                "fillColor": args.get("fillColor", ""),
-                "class": data["userdata"]["class"],
-                "strokeColor": args.get("strokeColor", ""),
-                "x": first_point.get("x"),  # Use first point for reference
-                "y": first_point.get("y"),
-                "vertices": len(segments),  # Add number of vertices
-            }
-            return flattened_data
-        else:
-            # It's a point
-            point = segments[0].get("point", {})
-            flattened_data = {
-                "objectId": data["userdata"]["objectId"],
-                "type": "Point",
-                "fillOpacity": args.get("fillOpacity", 1),
-                "fillColor": args.get("fillColor", ""),
-                "class": data["userdata"]["class"],
-                "strokeColor": args.get("strokeColor", ""),
-                "x": point.get("x"),
-                "y": point.get("y"),
-                "markerSize": args.get("strokeWidth", 10),
-                "markerColor": args.get("fillColor", ""),
-            }
-            return flattened_data
-    elif data["paperType"] == "Path.Circle":
-        # Handle circle markers
-        center = args.get("center", {})
-        flattened_data = {
-            "objectId": data["userdata"]["objectId"],
-            "type": "Point",
-            "fillOpacity": args.get("fillOpacity", 1),
-            "fillColor": args.get("fillColor", ""),
-            "class": data["userdata"]["class"],
-            "strokeColor": args.get("strokeColor", ""),
-            "x": center.get("x"),
-            "y": center.get("y"),
-            "markerSize": args.get("radius", 10),
-            "markerColor": args.get("fillColor", ""),
-        }
-        return flattened_data
-    return None
-
-
 # First, define the column definitions
 tileSourceColumns = [
     {"field": "layer", "headerName": "Layer", "width": 90},
@@ -405,7 +350,7 @@ paperJsShapeColumns = [
             "minValue": 0,
             "maxValue": 1,
             "step": 0.1,
-            "valueFormatter": "value.toFixed(2)",
+            "valueFormatter": {"function": "params => params.value.toFixed(2)"},
         },
     },
     {"field": "x", "headerName": "X", "width": 80, "type": "numericColumn"},
@@ -642,56 +587,7 @@ coordinate_display = html.Div(
     className="no-right-margin g-0",
 )
 
-annotation_panel = html.Div(
-    [
-        dbc.Card(
-            [
-                dbc.CardBody(
-                    [
-                        html.H6("Available Annotations", className="mb-2"),
-                        dash_ag_grid.AgGrid(
-                            id="annotationTable",
-                            columnDefs=[
-                                {"field": "name", "headerName": "Name", "width": 200},
-                                {
-                                    "field": "description",
-                                    "headerName": "Description",
-                                    "width": 300,
-                                },
-                                {
-                                    "field": "created",
-                                    "headerName": "Created",
-                                    "width": 150,
-                                },
-                                {
-                                    "field": "updated",
-                                    "headerName": "Updated",
-                                    "width": 150,
-                                },
-                            ],
-                            rowData=[],
-                            defaultColDef={
-                                "resizable": True,
-                                "sortable": True,
-                                "filter": True,
-                            },
-                            style={"height": "200px", "width": "100%"},
-                            dashGridOptions={
-                                "rowHeight": 35,
-                                "headerHeight": 35,
-                                "enableCellTextSelection": True,
-                                "rowSelection": "single",  # Enable single row selection
-                            },
-                        ),
-                    ],
-                    className="p-2",
-                ),
-            ],
-            className="mb-2",
-        ),
-    ],
-    style={"width": "100%"},  # Changed from width prop to style prop
-)
+annotation_panel = generate_annotation_panel()
 
 
 imageSelect_dropdown = html.Div(
@@ -741,59 +637,7 @@ imageSelect_dropdown = html.Div(
 
 
 # Create the modal for key bindings
-key_bindings_modal = dbc.Modal(
-    [
-        dbc.ModalHeader("Keyboard Shortcuts"),
-        dbc.ModalBody(
-            [
-                html.Table(
-                    [
-                        html.Thead(
-                            html.Tr(
-                                [
-                                    html.Th("Key", style={"width": "100px"}),
-                                    html.Th("Action"),
-                                ]
-                            )
-                        ),
-                        html.Tbody(
-                            [
-                                html.Tr(
-                                    [
-                                        html.Td(html.Kbd(binding["key"])),
-                                        html.Td(
-                                            f"{binding['action']}: {binding.get('property', binding.get('tool', binding.get('callback', '')))}"
-                                        ),
-                                    ]
-                                )
-                                for binding in config["eventBindings"]
-                                if binding["event"] == "keyDown"
-                            ]
-                        ),
-                    ],
-                    className="table table-sm",
-                    style={"fontSize": "0.9em"},
-                ),
-                html.Hr(),
-                html.H6("Mouse Actions", className="mt-3"),
-                html.Ul(
-                    [
-                        html.Li("Click and drag to pan the image"),
-                        html.Li("Scroll wheel to zoom in/out"),
-                        html.Li("Double-click to reset view"),
-                    ],
-                    style={"fontSize": "0.9em"},
-                ),
-            ]
-        ),
-        dbc.ModalFooter(
-            dbc.Button("Close", id="close-keybindings", className="ms-auto")
-        ),
-    ],
-    id="keybindings-modal",
-    size="sm",
-    is_open=False,
-)
+key_bindings_modal = generate_key_bindings_modal(config)
 
 
 app.layout = dbc.Container(
@@ -1002,9 +846,9 @@ def update_shape_data_store(
     # Handle random shape generation
     elif triggered_id in ["make_random_button", "make_random_points_button"]:
         if triggered_id == "make_random_button":
-            new_shapes = generate_random_boxes(3, viewPortBounds)
+            new_shapes = generate_random_boxes(3, viewPortBounds, classes, colors)
         else:
-            new_shapes = generate_random_points(3, viewPortBounds)
+            new_shapes = generate_random_points(3, viewPortBounds, classes, colors)
 
         return current_shapes + new_shapes if not clearItems else new_shapes
 
@@ -1136,19 +980,6 @@ def update_paper_view(selected_rows, paper_output, shape_data_update, shape_data
     return no_update
 
 
-def get_box_instructions(x, y, w, h, color, userdata={}):
-    props = config.get("defaultStyle") | {
-        "point": {"x": x, "y": y},
-        "size": {"width": w, "height": h},
-        "fillColor": color,
-        "strokeColor": color,
-    }
-    userdata["objectId"] = getId()
-    command = {"paperType": "Path.Rectangle", "args": [props], "userdata": userdata}
-
-    return command
-
-
 def generate_paperjs_polygon(shapeInfo):
     jsPolygon = [
         {
@@ -1173,79 +1004,6 @@ def generate_paperjs_polygon(shapeInfo):
     ]
 
     return jsPolygon
-
-
-def generate_random_boxes(num_points, bounds):
-    out = []
-
-    x = int(bounds["x"])
-    w = int(bounds["width"])
-    y = int(bounds["y"])
-    h = int(bounds["height"])
-
-    for idx, _ in enumerate(range(num_points)):
-        className, color = random.choice(list(zip(classes, colors)))
-        # color = random.choice(colors)
-        userdata = {"class": className}
-
-        bx = random.randint(x, x + w)
-        by = random.randint(y, y + h)
-        bw = random.randint(int(w / 150), int(w / 50))
-        bh = random.randint(int(h / 150), int(h / 50))
-        instructions = get_box_instructions(bx, by, bw, bh, color, userdata)
-
-        out.append(instructions)
-
-    return out
-
-
-def generate_random_points(num_points, bounds):
-    out = []
-    x = int(bounds["x"])
-    w = int(bounds["width"])
-    y = int(bounds["y"])
-    h = int(bounds["height"])
-
-    for _ in range(num_points):
-        className, color = random.choice(list(zip(classes, colors)))
-        userdata = {"class": className, "objectId": getId()}
-
-        px = random.randint(x, x + w)
-        py = random.randint(y, y + h)
-
-        # Create a circle marker with proper scaling
-        marker = {
-            "paperType": "Path.Circle",
-            "args": [
-                {
-                    "center": {"x": px, "y": py},
-                    "radius": 200,  # Increased from 50 to 200 for better visibility
-                    "fillColor": color,
-                    "strokeColor": color,
-                    "fillOpacity": 0.8,
-                    "strokeWidth": 4,  # Increased from 2 to 4 for better visibility
-                    "rescale": {
-                        "strokeWidth": 4,  # Match the stroke width
-                        "radius": 200,  # Match the base radius
-                    },
-                }
-            ],
-            "userdata": userdata,
-        }
-        out.append(marker)
-
-    return out
-
-
-## This call back will get fairly complicated as it not only handled objects created in python
-## but also objects created in the paperjs side
-# @callback(
-#     Output("osdViewerComponent", "inputToPaper"), Input("osdShapeData_store", "data")
-# )
-# def update_osdShapeData_store(data):
-#     ## This may not always update openseadragon depending on what changes occurred
-
-#     return data
 
 
 ## This updates the mouse tracker
@@ -1277,49 +1035,6 @@ def update_viewportBounds(viewPortBounds):
     vp = viewPortBounds
     return (
         f'x:{int(vp["x"])} y:{int(vp["y"])} w:{int(vp["width"])} h:{int(vp["height"])}'
-    )
-
-
-def get_color_from_pixel(color_data):
-    """Convert RGB values to hex color string"""
-    if color_data:
-        r = color_data.get("r", 0)
-        g = color_data.get("g", 0)
-        b = color_data.get("b", 0)
-        return f"#{r:02x}{g:02x}{b:02x}"
-    return "#000000"
-
-
-# Update the tile source properties display function
-def generateImgSrcControlPanel(tileSource, idx):
-    if isinstance(tileSource, str):
-        tileSource = {
-            "tileSource": tileSource,
-            "x": 0,
-            "y": 0,
-            "opacity": 1,
-            "rotation": 0,
-        }
-
-    return dash_ag_grid.AgGrid(
-        id={"type": "tileSource-grid", "index": idx},
-        columnDefs=tileSourceColumns,
-        rowData=[
-            {
-                "layer": idx,
-                "x": tileSource.get("x", 0),
-                "y": tileSource.get("y", 0),
-                "opacity": tileSource.get("opacity", 1),
-                "rotation": tileSource.get("rotation", 0),
-            }
-        ],
-        defaultColDef={
-            "resizable": True,
-            "sortable": True,
-            "filter": True,
-        },
-        style={"height": "52px"},  # Just enough for one row
-        dashGridOptions={"domLayout": "autoHeight"},
     )
 
 
@@ -1659,46 +1374,3 @@ def toggle_modal(n1, n2, is_open):
 
 if __name__ == "__main__":
     app.run_server(debug=True)
-
-
-# Create a callback to update the opacity property when the slider value changes
-# @callback(
-#     [Output({'type': 'slider', 'index': i}, 'value') for i in range(len(data))],
-#     [Input({'type': 'slider', 'index': i}, 'value') for i in range(len(data))]
-# )
-# def update_opacity(*slider_values):
-#     print(slider_values)
-#     return slider_values
-
-
-# inputToPaper = {}  ## this will be an array of commands to send to paper if needed
-
-# if paperOutput is None:
-#     paperOutput = {}
-
-# callback = callbacks.get(paperOutput.get("callback"))
-
-# if callback and paperOutput.get("callback"):
-#     inputToPaper = callback(paperOutput.get("data"))
-#     ### Not sure if I need to append this..
-#     ## If action type is drawItems than I need to append to the currentShapeData
-#     if inputToPaper.get("actions")[0].get("type") == "drawItems":
-#         currentShapeData.append(inputToPaper["actions"][0]["itemList"])
-#         # print("CSD-->", currentShapeData)
-#         return inputToPaper, currentShapeData
-#         # inputToShapreDataStore = currentShapeData
-
-# if make_random_boxesClicked and not paperOutput.get("callback"):
-#     # bounds = paperOutput.get("viewportBounds")
-#     shapesToAdd = generate_random_boxes(3, viewPortBounds)
-
-#     # shapesToAdd = generate_paperjs_polygon("tbd")
-#     # print(shapesToAdd)
-
-#     # print(shapesToAdd)
-#     return inputToPaper, shapesToAdd
-
-# ### Need to interrogate the inputToPaper object and see if I need to update the data store
-
-# # print("ITP", inputToPaper, "PO:", paperOutput)
-# return inputToPaper, no_update

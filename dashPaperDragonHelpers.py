@@ -1,4 +1,4 @@
-""" These are various functions that are used to create UI components and do
+"""These are various functions that are used to create UI components and do
 coordinate transformations and format transformations between GeoJSON, PaperJS, and the
 DSA data model."""
 
@@ -10,6 +10,56 @@ import math
 from dash import html, dcc
 from pprint import pprint
 import re
+import random
+from PIL import Image
+import io
+import base64
+import dash_bootstrap_components as dbc
+import dash_ag_grid
+import requests
+
+
+# config = {
+#     "eventBindings": [
+#         {"event": "keyDown", "key": "c", "action": "cycleProp", "property": "class"},
+#         {
+#             "event": "keyDown",
+#             "key": "x",
+#             "action": "cyclePropReverse",
+#             "property": "class",
+#         },
+#         {"event": "keyDown", "key": "d", "action": "deleteItem"},
+#         {"event": "keyDown", "key": "n", "action": "newItem", "tool": "rectangle"},
+#         {
+#             "event": "keyDown",
+#             "key": "o",
+#             "action": "dashCallback",
+#             "callback": "grabColor",
+#         },
+#         {"event": "mouseEnter", "action": "dashCallback", "callback": "mouseEnter"},
+#         {"event": "mouseLeave", "action": "dashCallback", "callback": "mouseLeave"},
+#     ],
+#     "callbacks": [
+#         {"eventName": "item-created", "callback": "createItem"},
+#         {"eventName": "property-changed", "callback": "propertyChanged"},
+#         {"eventName": "item-deleted", "callback": "itemDeleted"},
+#         {"eventName": "color-grabbed", "callback": "colorGrabbed"},
+#     ],
+#     "properties": {"class": classes},
+#     "defaultStyle": {
+#         "fillColor": colors[0],
+#         "strokeColor": colors[0],
+#         "rescale": {
+#             "strokeWidth": 1,
+#         },
+#         "fillOpacity": 0.2,
+#     },
+#     "styles": {
+#         "class": {
+#             k: {"fillColor": c, "strokeColor": c} for (k, c) in zip(classes, colors)
+#         }
+#     },
+# }
 
 
 def get_itemId_from_url(url):
@@ -378,29 +428,20 @@ def feature_to_element(feature):
 
 
 def convertPaperInstructions_toTableForm(data):
-
-    # args = data["args"][0]
-    # Flatten the data
+    """Convert Paper.js instructions to table format."""
+    print("Converting data:", data)
     args = data.get("args", [])
     if args:
         args = args[0]
-    print("-------------------")
-    print(data)
-    # print(data, "was received")
 
-    ### The path is different for rectangles..
     if data["paperType"] == "Path.Rectangle":
-
-        # Flatten the data
         flattened_data = {
             "objectId": data["userdata"]["objectId"],
             "fillOpacity": args["fillOpacity"],
             "fillColor": args["fillColor"],
             "class": data["userdata"]["class"],
             "strokeColor": args["strokeColor"],
-            "rotation": args.get(
-                "rotation"
-            ),  # Use .get() to avoid KeyError if 'rotation' is not present
+            "rotation": args.get("rotation"),
             "x": args["point"]["x"],
             "y": args["point"]["y"],
             "width": args["size"]["width"],
@@ -409,17 +450,52 @@ def convertPaperInstructions_toTableForm(data):
         }
         return flattened_data
     elif data["paperType"] == "Path":
+        segments = args.get("segments", [])
+        if len(segments) > 2 and args.get("closed", False):
+            first_point = segments[0].get("point", {})
+            flattened_data = {
+                "objectId": data["userdata"]["objectId"],
+                "type": data["userdata"].get("type", "Polygon"),
+                "fillOpacity": args.get("fillOpacity", 0.2),
+                "fillColor": args.get("fillColor", ""),
+                "class": data["userdata"]["class"],
+                "strokeColor": args.get("strokeColor", ""),
+                "x": first_point.get("x"),
+                "y": first_point.get("y"),
+                "vertices": len(segments),
+            }
+            return flattened_data
+        else:
+            point = segments[0].get("point", {})
+            flattened_data = {
+                "objectId": data["userdata"]["objectId"],
+                "type": "Point",
+                "fillOpacity": args.get("fillOpacity", 1),
+                "fillColor": args.get("fillColor", ""),
+                "class": data["userdata"]["class"],
+                "strokeColor": args.get("strokeColor", ""),
+                "x": point.get("x"),
+                "y": point.get("y"),
+                "markerSize": args.get("strokeWidth", 10),
+                "markerColor": args.get("fillColor", ""),
+            }
+            return flattened_data
+    elif data["paperType"] == "Path.Circle":
+        center = args.get("center", {})
         flattened_data = {
             "objectId": data["userdata"]["objectId"],
-            "fillOpacity": args["fillOpacity"],
-            "fillColor": args["fillColor"],
+            "type": "Point",
+            "fillOpacity": args.get("fillOpacity", 1),
+            "fillColor": args.get("fillColor", ""),
             "class": data["userdata"]["class"],
-            "strokeColor": args["strokeColor"],
-            "rotation": args.get("rotation"),
+            "strokeColor": args.get("strokeColor", ""),
+            "x": center.get("x"),
+            "y": center.get("y"),
+            "markerSize": args.get("radius", 10),
+            "markerColor": args.get("fillColor", ""),
         }
         return flattened_data
-        # Use .get() to av
-    ## TO DO: process segments
+    return None
 
 
 def flatten_geojson(geojson_objects):
@@ -568,3 +644,676 @@ def generate_dsaStyle_string(
 
     encodedStyle = urllib.parse.quote_plus(json.dumps(styleData))
     return encodedStyle
+
+
+def generate_random_checkerboard(width=2048, height=2048, square_size=256):
+    """Generate a random color checkerboard pattern as a base64 encoded PNG."""
+    # Create a new image with RGB mode
+    img = Image.new("RGB", (width, height))
+    pixels = img.load()
+
+    # Generate random colors for each square
+    for x in range(0, width, square_size):
+        for y in range(0, height, square_size):
+            # Generate a random color
+            color = (
+                random.randint(0, 255),  # R
+                random.randint(0, 255),  # G
+                random.randint(0, 255),  # B
+            )
+
+            # Fill the square with the color
+            for i in range(square_size):
+                for j in range(square_size):
+                    if x + i < width and y + j < height:
+                        pixels[x + i, y + j] = color
+
+    # Convert to base64
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    return img_str
+
+
+def get_box_instructions(x, y, w, h, color, userdata=None):
+    """Generate instructions for creating a box shape"""
+    if userdata is None:
+        userdata = {}
+
+    props = {
+        "point": {"x": x, "y": y},
+        "size": {"width": w, "height": h},
+        "fillColor": color,
+        "strokeColor": color,
+        "fillOpacity": 0.2,
+        "strokeWidth": 2,
+    }
+
+    userdata["objectId"] = str(uuid.uuid4())
+    command = {"paperType": "Path.Rectangle", "args": [props], "userdata": userdata}
+    return command
+
+
+def generate_random_boxes(num_points, bounds, classes, colors):
+    """Generate random box shapes within given bounds"""
+    out = []
+    x = int(bounds["x"])
+    w = int(bounds["width"])
+    y = int(bounds["y"])
+    h = int(bounds["height"])
+
+    for _ in range(num_points):
+        className, color = random.choice(list(zip(classes, colors)))
+        userdata = {"class": className}
+
+        bx = random.randint(x, x + w)
+        by = random.randint(y, y + h)
+        bw = random.randint(int(w / 150), int(w / 50))
+        bh = random.randint(int(h / 150), int(h / 50))
+        instructions = get_box_instructions(bx, by, bw, bh, color, userdata)
+        out.append(instructions)
+
+    return out
+
+
+def generate_random_points(num_points, bounds, classes, colors):
+    """Generate random point markers within given bounds"""
+    out = []
+    x = int(bounds["x"])
+    w = int(bounds["width"])
+    y = int(bounds["y"])
+    h = int(bounds["height"])
+
+    for _ in range(num_points):
+        className, color = random.choice(list(zip(classes, colors)))
+        userdata = {"class": className, "objectId": str(uuid.uuid4())}
+
+        px = random.randint(x, x + w)
+        py = random.randint(y, y + h)
+
+        marker = {
+            "paperType": "Path.Circle",
+            "args": [
+                {
+                    "center": {"x": px, "y": py},
+                    "radius": 200,
+                    "fillColor": color,
+                    "strokeColor": color,
+                    "fillOpacity": 0.8,
+                    "strokeWidth": 4,
+                    "rescale": {
+                        "strokeWidth": 4,
+                        "radius": 200,
+                    },
+                }
+            ],
+            "userdata": userdata,
+        }
+        out.append(marker)
+
+    return out
+
+
+def get_color_from_pixel(color_data):
+    """Convert RGB values to hex color string"""
+    if color_data:
+        r = color_data.get("r", 0)
+        g = color_data.get("g", 0)
+        b = color_data.get("b", 0)
+        return f"#{r:02x}{g:02x}{b:02x}"
+    return "#000000"
+
+
+def generateImgSrcControlPanel(tileSource, idx):
+    """Generate a control panel for tile source properties"""
+    if isinstance(tileSource, str):
+        tileSource = {
+            "tileSource": tileSource,
+            "x": 0,
+            "y": 0,
+            "opacity": 1,
+            "rotation": 0,
+        }
+
+    return dash_ag_grid.AgGrid(
+        id={"type": "tileSource-grid", "index": idx},
+        columnDefs=[
+            {
+                "field": "layer",
+                "headerName": "Layer",
+                "editable": False,
+                "type": "numericColumn",
+            },
+            {
+                "field": "x",
+                "headerName": "X Offset",
+                "editable": True,
+                "type": "numericColumn",
+                "valueFormatter": "params.value.toFixed(2)",
+            },
+            {
+                "field": "y",
+                "headerName": "Y Offset",
+                "editable": True,
+                "type": "numericColumn",
+                "valueFormatter": "params.value.toFixed(2)",
+            },
+            {
+                "field": "opacity",
+                "headerName": "Opacity",
+                "editable": True,
+                "type": "numericColumn",
+                "cellRenderer": "agSliderCellRenderer",
+                "cellRendererParams": {
+                    "minValue": 0,
+                    "maxValue": 1,
+                    "step": 0.1,
+                },
+                "valueFormatter": "params.value.toFixed(2)",
+            },
+            {
+                "field": "rotation",
+                "headerName": "Rotation",
+                "editable": True,
+                "type": "numericColumn",
+                "valueFormatter": "params.value.toFixed(1)",
+            },
+        ],
+        rowData=[
+            {
+                "layer": idx,
+                "x": float(tileSource.get("x", 0)),
+                "y": float(tileSource.get("y", 0)),
+                "opacity": float(tileSource.get("opacity", 1)),
+                "rotation": float(tileSource.get("rotation", 0)),
+            }
+        ],
+        defaultColDef={
+            "resizable": True,
+            "sortable": True,
+            "filter": True,
+            "minWidth": 100,
+        },
+        dashGridOptions={
+            "domLayout": "autoHeight",
+            "stopEditingWhenCellsLoseFocus": True,
+        },
+    )
+
+
+# Add these column definitions and layout components at the end of the file
+
+# Column definitions for AG Grid tables
+tileSourceColumns = [
+    {
+        "field": "layer",
+        "headerName": "Layer",
+        "width": 80,
+        "editable": False,
+    },
+    {
+        "field": "x",
+        "headerName": "X Offset",
+        "width": 120,
+        "editable": True,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+    {
+        "field": "y",
+        "headerName": "Y Offset",
+        "width": 120,
+        "editable": True,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+    {
+        "field": "opacity",
+        "headerName": "Opacity",
+        "width": 120,
+        "editable": True,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+    {
+        "field": "rotation",
+        "headerName": "Rotation",
+        "width": 120,
+        "editable": True,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+]
+
+paperJsShapeColumns = [
+    {
+        "field": "objectId",
+        "headerName": "ID",
+        "width": 100,
+        "editable": False,
+    },
+    {
+        "field": "type",
+        "headerName": "Type",
+        "width": 100,
+        "editable": False,
+    },
+    {
+        "field": "x",
+        "headerName": "X",
+        "width": 100,
+        "editable": False,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+    {
+        "field": "y",
+        "headerName": "Y",
+        "width": 100,
+        "editable": False,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+    {
+        "field": "width",
+        "headerName": "Width",
+        "width": 100,
+        "editable": False,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+    {
+        "field": "height",
+        "headerName": "Height",
+        "width": 100,
+        "editable": False,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+    {
+        "field": "fillColor",
+        "headerName": "Fill Color",
+        "width": 120,
+        "editable": False,
+    },
+    {
+        "field": "strokeColor",
+        "headerName": "Stroke Color",
+        "width": 120,
+        "editable": False,
+    },
+    {
+        "field": "strokeWidth",
+        "headerName": "Stroke Width",
+        "width": 100,
+        "editable": False,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+    {
+        "field": "fillOpacity",
+        "headerName": "Fill Opacity",
+        "width": 100,
+        "editable": False,
+        "valueFormatter": lambda params: f"{params.value:.2f}",
+    },
+]
+
+# Layout components
+coordinate_display = dbc.Card(
+    [
+        dbc.CardHeader("Coordinates"),
+        dbc.CardBody(
+            [
+                html.Div(
+                    [
+                        html.Label("X: "),
+                        html.Span(id="x-coord", style={"marginRight": "20px"}),
+                        html.Label("Y: "),
+                        html.Span(id="y-coord"),
+                    ],
+                    style={"fontSize": "14px"},
+                )
+            ]
+        ),
+    ],
+    style={"marginBottom": "10px"},
+)
+
+annotation_panel = dbc.Card(
+    [
+        dbc.CardHeader("Annotation Tools"),
+        dbc.CardBody(
+            [
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Button(
+                                "Rectangle",
+                                id="rectangle-button",
+                                color="primary",
+                                className="me-2",
+                                style={"width": "100%", "marginBottom": "5px"},
+                            ),
+                            width=6,
+                        ),
+                        dbc.Col(
+                            dbc.Button(
+                                "Point",
+                                id="point-button",
+                                color="primary",
+                                className="me-2",
+                                style={"width": "100%", "marginBottom": "5px"},
+                            ),
+                            width=6,
+                        ),
+                    ]
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Button(
+                                "Delete Selected",
+                                id="delete-button",
+                                color="danger",
+                                className="me-2",
+                                style={"width": "100%", "marginBottom": "5px"},
+                            ),
+                            width=6,
+                        ),
+                        dbc.Col(
+                            dbc.Button(
+                                "Clear All",
+                                id="clear-button",
+                                color="warning",
+                                className="me-2",
+                                style={"width": "100%", "marginBottom": "5px"},
+                            ),
+                            width=6,
+                        ),
+                    ]
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Button(
+                                "Get Color",
+                                id="get-color-button",
+                                color="info",
+                                className="me-2",
+                                style={"width": "100%", "marginBottom": "5px"},
+                            ),
+                            width=6,
+                        ),
+                        dbc.Col(
+                            dbc.Button(
+                                "Add Checkerboard",
+                                id="add_checkerboard_button",
+                                color="info",
+                                className="me-2",
+                                style={"width": "100%", "marginBottom": "5px"},
+                            ),
+                            width=6,
+                        ),
+                    ]
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            dbc.Button(
+                                "⌨️ Key Bindings",
+                                id="key-bindings-button",
+                                color="secondary",
+                                className="me-2",
+                                style={"width": "100%", "marginBottom": "5px"},
+                            ),
+                            width=12,
+                        ),
+                    ]
+                ),
+            ]
+        ),
+    ],
+    style={"marginBottom": "10px"},
+)
+
+key_bindings_modal = dbc.Modal(
+    [
+        dbc.ModalHeader("Key Bindings"),
+        dbc.ModalBody(
+            [
+                html.Div(
+                    [
+                        html.P("Rectangle Tool: 'r'"),
+                        html.P("Point Tool: 'p'"),
+                        html.P("Delete Selected: 'd'"),
+                        html.P("Clear All: 'c'"),
+                        html.P("Get Color: 'g'"),
+                        html.P("Add Checkerboard: 'a'"),
+                        html.P("Cycle Property Forward: 'f'"),
+                        html.P("Cycle Property Backward: 'b'"),
+                    ],
+                    style={"fontSize": "14px"},
+                )
+            ]
+        ),
+        dbc.ModalFooter(
+            dbc.Button("Close", id="close-key-bindings", className="ml-auto")
+        ),
+    ],
+    id="key-bindings-modal",
+    is_open=False,
+)
+
+
+def generate_key_bindings_modal(config):
+    """Generate the key bindings modal component."""
+    return dbc.Modal(
+        [
+            dbc.ModalHeader("Keyboard Shortcuts"),
+            dbc.ModalBody(
+                [
+                    html.Table(
+                        [
+                            html.Thead(
+                                html.Tr(
+                                    [
+                                        html.Th("Key", style={"width": "100px"}),
+                                        html.Th("Action"),
+                                    ]
+                                )
+                            ),
+                            html.Tbody(
+                                [
+                                    html.Tr(
+                                        [
+                                            html.Td(html.Kbd(binding["key"])),
+                                            html.Td(
+                                                f"{binding['action']}: {binding.get('property', binding.get('tool', binding.get('callback', '')))}"
+                                            ),
+                                        ]
+                                    )
+                                    for binding in config["eventBindings"]
+                                    if binding["event"] == "keyDown"
+                                ]
+                            ),
+                        ],
+                        className="table table-sm",
+                        style={"fontSize": "0.9em"},
+                    ),
+                    html.Hr(),
+                    html.H6("Mouse Actions", className="mt-3"),
+                    html.Ul(
+                        [
+                            html.Li("Click and drag to pan the image"),
+                            html.Li("Scroll wheel to zoom in/out"),
+                            html.Li("Double-click to reset view"),
+                        ],
+                        style={"fontSize": "0.9em"},
+                    ),
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button("Close", id="close-keybindings", className="ms-auto")
+            ),
+        ],
+        id="keybindings-modal",
+        size="sm",
+        is_open=False,
+    )
+
+
+def generate_annotation_panel():
+    """Generate the annotation panel component."""
+    return html.Div(
+        [
+            dbc.Card(
+                [
+                    dbc.CardBody(
+                        [
+                            html.H6("Available Annotations", className="mb-2"),
+                            dash_ag_grid.AgGrid(
+                                id="annotationTable",
+                                columnDefs=[
+                                    {
+                                        "field": "name",
+                                        "headerName": "Name",
+                                        "width": 200,
+                                    },
+                                    {
+                                        "field": "description",
+                                        "headerName": "Description",
+                                        "width": 300,
+                                    },
+                                    {
+                                        "field": "created",
+                                        "headerName": "Created",
+                                        "width": 150,
+                                    },
+                                    {
+                                        "field": "updated",
+                                        "headerName": "Updated",
+                                        "width": 150,
+                                    },
+                                ],
+                                rowData=[],
+                                defaultColDef={
+                                    "resizable": True,
+                                    "sortable": True,
+                                    "filter": True,
+                                },
+                                style={"height": "200px", "width": "100%"},
+                                dashGridOptions={
+                                    "rowHeight": 35,
+                                    "headerHeight": 35,
+                                    "enableCellTextSelection": True,
+                                    "rowSelection": "single",
+                                },
+                            ),
+                        ],
+                        className="p-2",
+                    ),
+                ],
+                className="mb-2",
+            ),
+        ],
+        style={"width": "100%"},
+    )
+
+
+def get_dsa_image_metadata(api_url, item_id):
+    """Fetch image metadata from DSA server"""
+    try:
+        metadata_url = f"{api_url}/item/{item_id}/tiles"
+        response = requests.get(metadata_url)
+        if response.status_code == 200:
+            metadata = response.json()
+            return {
+                "width": metadata.get("sizeX", 0),
+                "height": metadata.get("sizeY", 0),
+            }
+        else:
+            print(
+                f"Failed to fetch metadata for item {item_id}: {response.status_code}"
+            )
+            return {"width": 0, "height": 0}
+    except Exception as e:
+        print(f"Error fetching metadata: {e}")
+        return {"width": 0, "height": 0}
+
+
+def get_dsa_annotations(api_url, item_id):
+    """Fetch annotations from DSA and convert them to shape format."""
+    try:
+        response = requests.get(f"{api_url}/annotation/item/{item_id}")
+        response.raise_for_status()
+        annotations = response.json()
+
+        shapes = []
+        for annotation in annotations:
+            # Convert DSA annotation to GeoJSON
+            geojson = dsa_to_geo_json(annotation)
+
+            # Process each feature in the GeoJSON
+            for feature in geojson["features"]:
+                shape = {
+                    "id": feature["properties"].get("userdata", {}).get("id", ""),
+                    "type": feature["geometry"]["type"],
+                    "coordinates": feature["geometry"]["coordinates"],
+                    "label": feature["properties"].get("label", ""),
+                    "fillColor": feature["properties"].get("fillColor", "#ff0000"),
+                    "strokeColor": feature["properties"].get("strokeColor", "#000000"),
+                }
+                shapes.append(shape)
+
+        return shapes
+    except Exception as e:
+        print(f"Error fetching DSA annotations: {e}")
+        return []
+
+
+def get_dsa_annotation_list(api_url, item_id):
+    """Fetch list of available annotations for an item from DSA."""
+    try:
+        response = requests.get(f"{api_url}/annotation", params={"itemId": item_id})
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Error fetching annotation list: {e}")
+        return []
+
+
+def createItem(data, colors, classes):
+    """Handle item creation callback."""
+    x = get_box_instructions(
+        data["point"]["x"],
+        data["point"]["y"],
+        data["size"]["width"],
+        data["size"]["height"],
+        colors[0],
+        {"class": classes[0]},
+    )
+    return {"actions": [{"type": "drawItems", "itemList": [x]}]}
+
+
+def deleteItem(id):
+    """Handle item deletion callback."""
+    return {"actions": [{"type": "deleteItem", "id": id}]}
+
+
+def itemDeleted(data):
+    """Handle item deleted event callback."""
+    print("itemDeleted", data)
+    return None
+
+
+def propertyChanged(data):
+    """Handle property change callback."""
+    print("propertyChanged", data)
+    return None
+
+
+def mouseLeave(args):
+    """Handle mouse leave event callback."""
+    return None
+
+
+def mouseEnter(args):
+    """Handle mouse enter event callback."""
+    return None
+
+
+def colorGrabbed(args):
+    """Handle color grab event callback."""
+    return None
