@@ -1317,3 +1317,129 @@ def mouseEnter(args):
 def colorGrabbed(args):
     """Handle color grab event callback."""
     return None
+
+
+def add_tile_source(tileSourceDict, source_config):
+    """Add a new tile source to the dictionary.
+
+    Args:
+        tileSourceDict (dict): The dictionary containing all tile sources
+        source_config (dict): Configuration for the new tile source with keys:
+            - label: Name/label for the tile source
+            - tileSource: URL or configuration for the tile source
+            - x: X offset (default: 0)
+            - y: Y offset (default: 0)
+            - opacity: Opacity value (default: 1)
+            - rotation: Rotation value (default: 0)
+            - api_url: (optional) DSA API URL
+            - item_id: (optional) DSA item ID
+
+    Returns:
+        dict: Updated tileSourceDict
+    """
+    label = source_config.get("label", f"Layer {len(tileSourceDict)}")
+
+    if isinstance(source_config.get("tileSource"), str):
+        # Direct URL
+        tile_source = {
+            "tileSource": source_config["tileSource"],
+            "x": source_config.get("x", 0),
+            "y": source_config.get("y", 0),
+            "opacity": source_config.get("opacity", 1),
+            "rotation": source_config.get("rotation", 0),
+        }
+    else:
+        # DSA configuration
+        api_url = source_config.get("api_url")
+        item_id = source_config.get("item_id")
+        if api_url and item_id:
+            tile_source_url = f"{api_url}/item/{item_id}/tiles/dzi.dzi"
+            tile_source = {
+                "tileSource": tile_source_url,
+                "x": source_config.get("x", 0),
+                "y": source_config.get("y", 0),
+                "opacity": source_config.get("opacity", 1),
+                "rotation": source_config.get("rotation", 0),
+                "layerIdx": source_config.get("layerIdx", len(tileSourceDict)),
+            }
+        else:
+            raise ValueError("Invalid tile source configuration")
+
+    tileSourceDict[label] = tile_source
+    return tileSourceDict
+
+
+def remove_tile_source(tileSourceDict, label):
+    """Remove a tile source from the dictionary.
+
+    Args:
+        tileSourceDict (dict): The dictionary containing all tile sources
+        label (str): The label/name of the tile source to remove
+
+    Returns:
+        dict: Updated tileSourceDict
+    """
+    if label in tileSourceDict:
+        del tileSourceDict[label]
+    return tileSourceDict
+
+
+def generate_tile_source_controls():
+    """Generate controls for managing tile sources."""
+    return html.Div(
+        [
+            dbc.Card(
+                [
+                    dbc.CardHeader("Tile Source Management"),
+                    dbc.CardBody(
+                        [
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        [
+                                            dbc.Input(
+                                                id="new-tile-source-url",
+                                                type="text",
+                                                placeholder="Enter tile source URL",
+                                                className="mb-2",
+                                            ),
+                                            dbc.Input(
+                                                id="new-tile-source-label",
+                                                type="text",
+                                                placeholder="Enter label",
+                                                className="mb-2",
+                                            ),
+                                            dbc.Button(
+                                                "Add Tile Source",
+                                                id="add-tile-source-button",
+                                                color="primary",
+                                                className="me-2",
+                                            ),
+                                        ],
+                                        width=6,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dbc.Select(
+                                                id="remove-tile-source-select",
+                                                options=[],  # Will be populated dynamically
+                                                className="mb-2",
+                                            ),
+                                            dbc.Button(
+                                                "Remove Tile Source",
+                                                id="remove-tile-source-button",
+                                                color="danger",
+                                                className="me-2",
+                                            ),
+                                        ],
+                                        width=6,
+                                    ),
+                                ]
+                            )
+                        ]
+                    ),
+                ],
+                className="mb-3",
+            )
+        ]
+    )

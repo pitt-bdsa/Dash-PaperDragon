@@ -7,7 +7,7 @@ import { DSAAdapter } from './dsaGeoJsonAdapter';
 /* OpenSeadragon and PaperJS Component that allows Dash to interact with the OpenSeadragon viewer */
 const DashPaperdragon = (props) => {
   const { id, // id of the div element created for this viewer
-    config, // configuration options for the component
+    config = {}, // configuration options for the component with default empty object
     tileSources, // the image source to view; can change depending on user input
     zoomLevel, // output property, sent by the component back to dash
     curMousePosition, // output property, sent by the component back to dash
@@ -34,6 +34,35 @@ const DashPaperdragon = (props) => {
   const paperMousePosRef = useRef({ x: 0, y: 0 });
   const keyDownRef = useRef(null);
   const creatingRef = useRef(null);
+  const editingRef = useRef(null);
+  const viewerIsOpening = useRef(null);
+
+  // Default configuration with fallbacks
+  const defaultConfig = {
+    eventBindings: [],
+    callbacks: [],
+    properties: {},
+    defaultStyle: {
+      fillColor: "red",
+      strokeColor: "red",
+      rescale: {
+        strokeWidth: 1,
+      },
+      fillOpacity: 0.2,
+    },
+    styles: {},
+  };
+
+  // Merge provided config with defaults
+  const mergedConfig = {
+    ...defaultConfig,
+    ...config,
+    eventBindings: [...(config.eventBindings || [])],
+    callbacks: [...(config.callbacks || [])],
+    properties: { ...(config.properties || {}) },
+    defaultStyle: { ...defaultConfig.defaultStyle, ...(config.defaultStyle || {}) },
+    styles: { ...(config.styles || {}) },
+  };
 
   /** Define actions */
   const actionsRef = useRef({
@@ -49,12 +78,14 @@ const DashPaperdragon = (props) => {
     getColor,
     zoomToBounds,
     addTileSource,
+    removeTileSource,
+    grabColor,
+    editItem,
   });
 
   function raiseEvent(eventName, data) {
     executeCallbacks(eventName, data);
   }
-
 
   /** Create viewer within a useEffect */
   useEffect(() => {
@@ -78,36 +109,89 @@ const DashPaperdragon = (props) => {
 
   useEffect(() => {
     const viewer = viewerRef.current;
-    // console.log(tileSourceProps, "are being updated")
+    if (!viewer || !tileSourceProps) {
+      console.debug('No viewer or tileSourceProps available');
+      return;
+    }
 
-    if (tileSourceProps) {
+    try {
+      console.debug('Updating tile source properties:', tileSourceProps);
+
       for (let i = 0; i < tileSourceProps.length; i++) {
-        let curTileSource = viewer.world.getItemAt(i);
-        // for (let prop in tileSourceProps[i]) {
-        if (curTileSource) {
-          // console.log(tileSourceProps[i].opacity);
-          //Updating opacity, position and rotation...
-          //Future state could only update properties that have changed, but these operations seem
-          //fast enough that it may not be necessary
-          curTileSource.setOpacity(tileSourceProps[i].opacity);
-          curTileSource.setPosition({ x: tileSourceProps[i].x, y: tileSourceProps[i].y })
-          curTileSource.setRotation(tileSourceProps[i].rotation);
+        const props = tileSourceProps[i];
+        const curTileSource = viewer.world.getItemAt(props.index !== undefined ? props.index : i);
+
+        if (!curTileSource) {
+          console.warn(`No tile source found at index ${i}`);
+          continue;
         }
+
+        if (!props) {
+          console.warn(`Invalid properties for tile source ${i}`);
+          continue;
+        }
+
+        console.debug(`Updating tile source ${i} with properties:`, props);
+
+        // Handle visibility and opacity together
+        if (props.visible !== undefined || props.opacity !== undefined) {
+          const isVisible = props.visible !== undefined ? props.visible : curTileSource.getVisible();
+          const opacity = props.opacity !== undefined ? props.opacity : curTileSource.getOpacity();
+          curTileSource.setOpacity(isVisible ? opacity : 0);
+        }
+
+        // Update position if either x or y is provided
+        if (props.x !== undefined || props.y !== undefined) {
+          const currentPos = curTileSource.getBounds().getTopLeft();
+          curTileSource.setPosition({
+            x: props.x !== undefined ? props.x : currentPos.x,
+            y: props.y !== undefined ? props.y : currentPos.y
+          });
+        }
+
+        // Update rotation if provided
+        if (props.rotation !== undefined) {
+          curTileSource.setRotation(props.rotation);
+        }
+
+        // Only update width/height if explicitly changed
+        // This prevents unintended viewport changes
+        if (props.width !== undefined && props.width !== curTileSource.getWidth()) {
+          curTileSource.setWidth(props.width);
+        }
+        if (props.height !== undefined && props.height !== curTileSource.getHeight()) {
+          curTileSource.setHeight(props.height);
+        }
+
+        // Update composite operation if specified
+        if (props.compositeOperation !== undefined) {
+          curTileSource.setCompositeOperation(props.compositeOperation);
+        }
+
+        // Force a redraw of just this tile
+        curTileSource.draw();
       }
-      //Iterate through the tilesources and change the opacity
+
+    } catch (error) {
+      console.error('Error updating tile source properties:', error);
     }
   }, [tileSourceProps]);
 
-
-  /** add reactive components via useEffect, listening to property changes */
 
   /** Open an image based on imageSrc property */
   useEffect(() => {
     if (viewerRef.current && tileSources) {
       // Update the image source
+      viewerIsOpening.current = true;
+      viewerRef.current.addOnceHandler('open', () => {
+        const cachedInputToPaper = inputToPaper;
+        viewerIsOpening.current = false;
+        handleInputToPaper(cachedInputToPaper);
+      });
+
       viewerRef.current.open(tileSources);
     }
-  }, [tileSources]);
+  }, [tileSources, inputToPaper]);
 
   /* respond to changes in the inputToPaper property */
   useEffect(handleInputToPaper, [inputToPaper]);
@@ -142,7 +226,7 @@ const DashPaperdragon = (props) => {
   function drawGeoJsonFeatureSet(action) {
     const list = action.itemList || [];
     if (!list.length) {
-      console.warning('No items were provided in the itemList property');
+      console.warn('No items were provided in the itemList property');
     }
     // Function is empty beyond this point
   }
@@ -179,7 +263,7 @@ const DashPaperdragon = (props) => {
   function drawItems(action) {
     const list = action.itemList || [];
     if (!list.length) {
-      console.warning('No items were provided in the itemList property');
+      console.warn('No items were provided in the itemList property');
     }
     for (const i of list) {
       const item = makeItem(i);
@@ -217,7 +301,6 @@ const DashPaperdragon = (props) => {
       } else {
         item.selected = false;
         console.log('Item created', item);
-        // makeItem(config.defaultStyle);
         const bounds = item.bounds;
         raiseEvent('item-created', {
           point: { x: bounds.x, y: bounds.y },
@@ -229,12 +312,12 @@ const DashPaperdragon = (props) => {
 
     } else {
       console.log('newItem called', opts, paperRef.current.rectangleTool);
-      let placeholder = toolkitRef.current.makePlaceholderItem(config.defaultStyle);
+      let placeholder = toolkitRef.current.makePlaceholderItem(mergedConfig.defaultStyle);
 
       let item = placeholder.paperItem;
 
-      if (config.defaultStyle.fillOpacity !== undefined) {
-        item.fillColor.alpha = config.defaultStyle.fillOpacity;
+      if (mergedConfig.defaultStyle.fillOpacity !== undefined) {
+        item.fillColor.alpha = mergedConfig.defaultStyle.fillOpacity;
       }
 
       item.selected = true;
@@ -256,7 +339,7 @@ const DashPaperdragon = (props) => {
     }
 
     // look up the array of options for this property from the config object
-    let propArray = config.properties[prop];
+    let propArray = mergedConfig.properties[prop];
     if (!propArray || !Array.isArray(propArray)) {
       console.error(`config.${prop} is ${typeof propArray}; it must be an Array to use cycleProp`);
       return;
@@ -269,7 +352,7 @@ const DashPaperdragon = (props) => {
     item.data.userdata[prop] = newVal;
 
     // look up a style that goes with this property key:value pair
-    let style = config.styles && config.styles[prop] && config.styles[prop][newVal];
+    let style = mergedConfig.styles && mergedConfig.styles[prop] && mergedConfig.styles[prop][newVal];
     if (style) {
       item.set(style);
     }
@@ -278,10 +361,20 @@ const DashPaperdragon = (props) => {
     if (item.fillColor) {
       item.fillColor.alpha = item.fillOpacity;
     }
-    item.applyRescale();
+
+    // Add safety check for applyRescale
+    if (item && typeof item.applyRescale === 'function') {
+      item.applyRescale();
+    } else {
+      // If applyRescale is not available, set default rescale properties
+      if (item) {
+        item.rescale = item.rescale || {};
+        item.rescale.strokeWidth = item.rescale.strokeWidth || 1;
+        // Add any other default rescale properties here if needed
+      }
+    }
 
     raiseEvent('property-changed', { item: item.data.userdata, property: prop });
-
   }
 
   function cyclePropReverse(opts, bound) {
@@ -338,6 +431,38 @@ const DashPaperdragon = (props) => {
     } catch (error) {
       console.error('Error getting pixel color:', error);
     }
+  }
+
+  function grabColor(opts) {
+    // Get the current mouse position from the ref
+    const mousePos = mousePosRef.current;
+
+    // Get the current tiledImage
+    const tiledImage = tiledImageRef.current;
+    if (!tiledImage) return;
+
+    // Get the context from the canvas
+    const context = tiledImage.viewer.drawer.canvas.getContext('2d');
+    const r = window.devicePixelRatio;
+
+    /* need to convert mousePos to image coordinates */
+    const imageCoords = tiledImage.viewer.viewport.imageToViewerElementCoordinates(mousePos);
+
+    // Get the pixel data at the current mouse position
+    const imageData = context.getImageData(imageCoords.x * r, imageCoords.y * r, 1, 1).data;
+
+    // Convert to RGB object
+    const pixelColor = {
+      r: imageData[0],
+      g: imageData[1],
+      b: imageData[2]
+    };
+
+    // Update the pixelColor prop
+    setProps({ pixelColor });
+
+    // Optionally raise an event for other callbacks
+    raiseEvent('color-grabbed', { color: pixelColor, position: mousePos });
   }
 
   function createViewer() {
@@ -487,7 +612,7 @@ const DashPaperdragon = (props) => {
 
   function badAction(a) {
     alert('Bad action, see console');
-    console.warning('Bad action:', a);
+    console.warn('Bad action:', a);
   }
 
 
@@ -514,10 +639,41 @@ const DashPaperdragon = (props) => {
       };
     }
 
+    // Map DSA properties to Paper.js properties
+    if (definition.args[0]) {
+      const args = definition.args[0];
+      // Map fillColor from DSA format
+      if (args.fillColor === undefined && args.properties?.fillColor !== undefined) {
+        args.fillColor = args.properties.fillColor;
+      }
+      // Map strokeColor from DSA format (lineColor)
+      if (args.strokeColor === undefined && args.properties?.lineColor !== undefined) {
+        args.strokeColor = args.properties.lineColor;
+      }
+      // Map strokeWidth from DSA format (lineWidth)
+      if (args.strokeWidth === undefined && args.properties?.lineWidth !== undefined) {
+        args.strokeWidth = args.properties.lineWidth;
+      }
+      // Map fillOpacity from DSA format
+      if (args.fillOpacity === undefined) {
+        // Extract opacity from rgba fillColor if present
+        const fillColorMatch = (args.fillColor || args.properties?.fillColor || '').match(/rgba\(.*,\s*([\d.]+)\)/);
+        args.fillOpacity = fillColorMatch ? parseFloat(fillColorMatch[1]) : 0.2;
+      }
+    }
+
     let item = new constructor(...definition.args);
     if (item.fillColor) {
-      // Set initial fill opacity from definition
-      item.fillColor.alpha = definition.args[0].fillOpacity || 0.2;
+      item.fillColor.alpha = item.fillOpacity;
+    }
+
+    // Initialize rescale property with defaults if not present
+    if (!item.rescale) {
+      item.rescale = {
+        strokeWidth: definition.args[0]?.rescale?.strokeWidth ||
+          definition.args[0]?.properties?.lineWidth ||
+          1
+      };
     }
 
     // bind some extra properties to keep track of where in the array we are, and the original definition of the object
@@ -525,7 +681,6 @@ const DashPaperdragon = (props) => {
 
     // add mouseEnter and mouseLeave handlers
     item.onMouseEnter = event => {
-      console.log(`Item is ${event.target.data.fillColor}`);
       setProps({ "curShapeObject": event.target.data });
       hoveredItemRef.current = event.target.data;
       executeBoundEvents({ event: 'mouseEnter' }, { item: event.target.data });
@@ -536,12 +691,15 @@ const DashPaperdragon = (props) => {
       executeBoundEvents({ event: 'mouseLeave' }, { item: event.target.data });
     }
 
+    // register the item with the annotation toolkit
+    AnnotationToolkit.registerFeature(item);
+
     return item;
   }
 
   function executeCallbacks(eventName, data) {
-    if (config.callbacks) {
-      let callbacks = config.callbacks.filter(a => a.eventName == eventName).map(a => a.callback);
+    if (mergedConfig.callbacks) {
+      let callbacks = mergedConfig.callbacks.filter(a => a.eventName == eventName).map(a => a.callback);
       for (const cb of callbacks) {
         dashCallback({ callback: cb }, data);
       }
@@ -549,8 +707,8 @@ const DashPaperdragon = (props) => {
   }
 
   function executeBoundEvents(filters, opts) {
-    if (config.eventBindings) {
-      let enterActions = config.eventBindings.filter(a => match(a, filters));
+    if (mergedConfig.eventBindings) {
+      let enterActions = mergedConfig.eventBindings.filter(a => match(a, filters));
       for (const a of enterActions) {
         const func = actionsRef.current[a.action];
         if (func) {
@@ -616,6 +774,41 @@ const DashPaperdragon = (props) => {
     };
 
     viewerRef.current.addTiledImage(options);
+  }
+
+  /** Remove a tile source from the viewer */
+  function removeTileSource(action) {
+    if (!viewerRef.current) return;
+
+    const sourceId = action.sourceId;
+    const tiledImage = viewerRef.current.world.getItemAt(sourceId);
+    if (tiledImage) {
+      viewerRef.current.world.removeItem(tiledImage);
+    }
+  }
+
+  function editItem(opts) {
+    if (creatingRef.current) {
+      return; // can't edit when you're already creating an item
+    }
+
+    if (editingRef.current) {
+      editingRef.current.selected = false;
+      paperRef.current.rectangleTool.deactivate();
+      const bounds = editingRef.current.bounds;
+      const itemData = editingRef.current.annotationItem || {};
+      raiseEvent('item-edited', {
+        point: { x: bounds.x, y: bounds.y },
+        size: { width: bounds.width, height: bounds.height },
+        userdata: itemData.userdata || {},
+        origRef: editingRef.current
+      });
+      editingRef.current = null;
+    } else if (opts && opts.item) {
+      editingRef.current = opts.item;
+      opts.item.selected = true;
+      paperRef.current.rectangleTool.activate();
+    }
   }
 
   return (

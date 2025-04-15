@@ -476,10 +476,28 @@ coordinate_display = html.Div(
                             [
                                 dbc.CardBody(
                                     [
-                                        html.H6(
-                                            "Tile Source Properties", className="mb-2"
+                                        dbc.Row(
+                                            [
+                                                dbc.Col(
+                                                    html.H6(
+                                                        "Tile Source Properties",
+                                                        className="mb-2",
+                                                    ),
+                                                    width="auto",
+                                                ),
+                                                dbc.Col(
+                                                    dbc.Button(
+                                                        "Add Tile Source",
+                                                        id="open-tile-source-modal",
+                                                        color="primary",
+                                                        size="sm",
+                                                        className="float-end",
+                                                    ),
+                                                    width="auto",
+                                                ),
+                                            ],
+                                            className="mb-2",
                                         ),
-                                        html.Div(id="imgScrControls_data"),
                                         dash_ag_grid.AgGrid(
                                             id="tileSourceTable",
                                             columnDefs=tileSourceColumns,
@@ -491,24 +509,20 @@ coordinate_display = html.Div(
                                                 "editable": True,
                                             },
                                             style={
-                                                "height": "150px",  # Fixed height
+                                                "height": "150px",
                                                 "width": "100%",
                                             },
                                             dashGridOptions={
-                                                "rowHeight": 35,
-                                                "headerHeight": 35,
-                                                "enableCellTextSelection": True,
+                                                "domLayout": "autoHeight",
                                                 "stopEditingWhenCellsLoseFocus": True,
-                                                "enterMovesDown": False,
-                                                "enterMovesDownAfterEdit": False,
                                             },
                                         ),
                                     ],
                                     className="p-2",
-                                ),  # Reduce padding
+                                ),
                             ],
                             className="mb-2",
-                        ),  # Reduce margin
+                        ),
                     ],
                     width=12,
                 ),
@@ -655,6 +669,54 @@ app.layout = dbc.Container(
         ),
         dbc.Row([dbc.Col(annotation_panel)]),
         key_bindings_modal,  # Add the modal to the layout
+        dbc.Modal(
+            [
+                dbc.ModalHeader("Add Tile Source"),
+                dbc.ModalBody(
+                    [
+                        dbc.Form(
+                            [
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            [
+                                                dbc.Label("Select Sample Tile Source"),
+                                                dbc.Select(
+                                                    id="new-tile-source-select",
+                                                    options=[
+                                                        {
+                                                            "label": src.get(
+                                                                "label", f"Source {i}"
+                                                            ),
+                                                            "value": i,
+                                                        }
+                                                        for i, src in enumerate(
+                                                            tileSources
+                                                        )
+                                                    ],
+                                                    value=None,
+                                                    className="mb-3",
+                                                ),
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                ),
+                dbc.ModalFooter(
+                    [
+                        dbc.Button(
+                            "Close", id="close-tile-source-modal", className="me-2"
+                        ),
+                        dbc.Button("Add", id="add-tile-source", color="primary"),
+                    ]
+                ),
+            ],
+            id="tile-source-modal",
+            is_open=False,
+        ),
     ],
     fluid=True,
 )
@@ -850,6 +912,8 @@ def update_shape_data_store(
         else:
             new_shapes = generate_random_points(3, viewPortBounds, classes, colors)
 
+        print(f"new_shapes: {new_shapes}")
+
         return current_shapes + new_shapes if not clearItems else new_shapes
 
     return no_update
@@ -860,25 +924,43 @@ def update_shape_data_store(
     [
         Input("shapeDataTable", "selectedRows"),
         Input("osdViewerComponent", "outputFromPaper"),
-        Input("osdShapeData_store", "data"),  # Add shape data store as input
+        Input("osdShapeData_store", "data"),
+        Input("add-tile-source", "n_clicks"),  # Add this input
     ],
     [
         State("osdShapeData_store", "data"),
+        State("new-tile-source-select", "value"),  # Add this state
     ],
 )
-def update_paper_view(selected_rows, paper_output, shape_data_update, shape_data):
-    """Unified callback to handle shape selection, paper events, and shape data updates"""
+def update_paper_view(
+    selected_rows,
+    paper_output,
+    shape_data_update,
+    add_tile_source_clicks,
+    shape_data,
+    newTileSource,
+):
+    """Unified callback to handle shape selection, paper events, shape data updates, and tile source addition"""
     ctx = callback_context
     if not ctx.triggered:
         return no_update
 
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
+    # Handle tile source addition
+    if (
+        triggered_id == "add-tile-source"
+        and add_tile_source_clicks
+        and newTileSource is not None
+    ):
+        print(f"\nAdding tile source {newTileSource} to viewer")
+        selected_source = tileSources[newTileSource]
+        return {"actions": [{"type": "addTileSource", "source": selected_source}]}
+
     # Handle shape data store changes
     if triggered_id == "osdShapeData_store":
         if not shape_data_update:
             return no_update
-
         return {
             "actions": [
                 {"type": "clearItems"},
@@ -1062,39 +1144,71 @@ def update_imageSrc(tileSourceIdx):
 
 @callback(Output("tileSourceTable", "rowData"), Input("imageSelect", "value"))
 def update_tileSourceTable(tileSourceIdx):
+    print(f"update_tileSourceTable called with: {tileSourceIdx}")
     tileSources = tileSourceDict[tileSourceIdx]
     if not isinstance(tileSources, list):
         tileSources = [tileSources]
 
     rowData = []
     for idx, source in enumerate(tileSources):
+        print(f"Processing tile source {idx}: {source}")
+
         if isinstance(source, str):
             rowData.append(
                 {
                     "layer": idx,
-                    "visible": True,  # Default to visible
-                    "width": 1,  # Default scale
-                    "height": 1,  # Default scale
+                    "visible": True,
+                    "width": 1,
+                    "height": 1,
                     "x": 0,
                     "y": 0,
                     "opacity": 1,
                     "rotation": 0,
-                    "pixelWidth": 0,  # Will be updated when image loads
-                    "pixelHeight": 0,  # Will be updated when image loads
-                    "x_offset": 0,  # Will be calculated from x * pixelWidth
-                    "y_offset": 0,  # Will be calculated from y * pixelHeight
+                    "pixelWidth": 10000,  # Default width if not specified
+                    "pixelHeight": 8000,  # Default height if not specified
+                    "x_offset": 0,
+                    "y_offset": 0,
                 }
             )
         else:
-            # Get the relative coordinates and image dimensions
-            rel_x = source.get("x", 0)
-            rel_y = source.get("y", 0)
-            pixel_width = source.get("imageWidth", 0)
-            pixel_height = source.get("imageHeight", 0)
+            # Extract API URL and item ID from the tile source URL
+            tile_url = source.get("tileSource", "")
+            match = re.match(r"(.*api/v1)/item/(.*?)/tiles/dzi.dzi", tile_url)
 
-            # Calculate pixel offsets using the correct dimensions
-            x_offset = int(rel_x * pixel_width) if pixel_width else 0  # x uses width
-            y_offset = int(rel_y * pixel_height) if pixel_height else 0  # y uses height
+            # Get image dimensions from DSA if possible
+            pixel_width = 10000  # Default width
+            pixel_height = 8000  # Default height
+
+            if match:
+                api_url = match.group(1)
+                item_id = match.group(2)
+                print(
+                    f"Fetching metadata from DSA - API URL: {api_url}, Item ID: {item_id}"
+                )
+
+                # Get image dimensions from DSA
+                metadata = get_dsa_image_metadata(api_url, item_id)
+                pixel_width = float(metadata.get("width", 10000))
+                pixel_height = float(metadata.get("height", 8000))
+                print(
+                    f"Retrieved dimensions from DSA - width: {pixel_width}, height: {pixel_height}"
+                )
+            else:
+                # Use dimensions from source if available
+                pixel_width = float(source.get("imageWidth", 10000))
+                pixel_height = float(source.get("imageHeight", 8000))
+
+            # Get the relative coordinates
+            rel_x = float(source.get("x", 0))
+            rel_y = float(source.get("y", 0))
+
+            # Calculate pixel offsets
+            x_offset = rel_x * pixel_width
+            y_offset = rel_y * pixel_height
+
+            print(f"Dimensions - width: {pixel_width}, height: {pixel_height}")
+            print(f"Relative coords - x: {rel_x}, y: {rel_y}")
+            print(f"Pixel offsets - x: {x_offset}, y: {y_offset}")
 
             rowData.append(
                 {
@@ -1102,29 +1216,31 @@ def update_tileSourceTable(tileSourceIdx):
                     "visible": source.get("visible", True),
                     "width": source.get("width", 1),
                     "height": source.get("height", 1),
-                    "x": rel_x,  # Keep the relative coordinates for internal use
+                    "x": rel_x,
                     "y": rel_y,
                     "opacity": source.get("opacity", 1),
                     "rotation": source.get("rotation", 0),
                     "pixelWidth": pixel_width,
                     "pixelHeight": pixel_height,
-                    "x_offset": x_offset,  # Add pixel-based offsets
+                    "x_offset": x_offset,
                     "y_offset": y_offset,
                 }
             )
+
+            print(f"Added row data: {rowData[-1]}")
+
     return rowData
 
 
 # ### Detect changes in xOffset, yOffset, and opacity
 @callback(
-    Output("imgScrControls_data", "children"),
     Output("osdViewerComponent", "tileSourceProps"),
     Input("tileSourceTable", "cellValueChanged"),
     State("tileSourceTable", "rowData"),  # Add state to get all row data
 )
 def process_tileSource_changes(changes, all_row_data):
     if not changes:
-        return no_update, no_update
+        return no_update
 
     try:
         # Transform grid changes into tile source properties
@@ -1136,7 +1252,11 @@ def process_tileSource_changes(changes, all_row_data):
                 if isinstance(data, dict):
                     # Get the layer index and ensure it's an integer
                     layer_idx = int(data.get("layer", 0))
-                    print(f"Processing change for layer {layer_idx}")  # Debug log
+                    # Get the field that was changed
+                    changed_field = change.get("colId", "")
+                    print(
+                        f"Processing change for layer {layer_idx}, field: {changed_field}"
+                    )  # Debug log
 
                     # Create props for all layers to maintain their state
                     all_props = []
@@ -1153,6 +1273,7 @@ def process_tileSource_changes(changes, all_row_data):
                         rel_x = x_offset / pixel_width if pixel_width else 0
                         rel_y = y_offset / pixel_height if pixel_height else 0
 
+                        # Start with basic props that are always included
                         props = {
                             "index": int(layer_data.get("layer", 0)),
                             "x": rel_x,  # Use relative coordinates for OpenSeadragon
@@ -1162,26 +1283,31 @@ def process_tileSource_changes(changes, all_row_data):
                             ),  # Set opacity to 0 if not visible
                             "rotation": float(layer_data.get("rotation", 0)),
                             "visible": is_visible,
-                            "width": float(layer_data.get("width", 1)),
-                            "height": float(layer_data.get("height", 1)),
                         }
+
+                        # Only include width/height if they were explicitly changed
+                        if changed_field == "width":
+                            props["width"] = float(layer_data.get("width", 1))
+                        if changed_field == "height":
+                            props["height"] = float(layer_data.get("height", 1))
+
                         all_props.append(props)
                         print(f"Layer {props['index']} props: {props}")  # Debug log
 
-                    return html.Div(), all_props
+                    return all_props
                 else:
                     print("Unexpected data format:", data)
-                    return no_update, no_update
+                    return no_update
             else:
                 print("Unexpected change format:", change)
-                return no_update, no_update
+                return no_update
         else:
             print("Unexpected changes format:", changes)
-            return no_update, no_update
+            return no_update
 
     except Exception as e:
         print("Error processing tile source changes:", e)
-        return no_update, no_update
+        return no_update
 
 
 @callback(
@@ -1368,6 +1494,34 @@ def update_annotation_table(tileSourceIdx):
 )
 def toggle_modal(n1, n2, is_open):
     if n1 or n2:
+        return not is_open
+    return is_open
+
+
+@callback(
+    Output("tile-source-modal", "is_open"),
+    [
+        Input("open-tile-source-modal", "n_clicks"),
+        Input("close-tile-source-modal", "n_clicks"),
+        Input("add-tile-source", "n_clicks"),
+        Input("new-tile-source-select", "value"),
+    ],
+    [State("tile-source-modal", "is_open")],
+)
+def toggle_modal(n1, n2, n3, newTileSource, is_open):
+    ctx = callback_context
+    if not ctx.triggered:
+        return is_open
+
+    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if triggered_id == "add-tile-source" and newTileSource is not None:
+        print("\nAdding new tile source:")
+        print("Selected index:", newTileSource)
+        print("Full tile source data:", tileSources[newTileSource])
+        print("Current tile source dictionary:", tileSourceDict)
+
+    if n1 or n2 or n3:
         return not is_open
     return is_open
 
