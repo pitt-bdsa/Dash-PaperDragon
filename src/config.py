@@ -35,7 +35,7 @@ DASH_PAPERDRAGON_CONFIG = {
         {"event": "keyDown", "key": "d", "action": "deleteItem"},
         {"event": "keyDown", "key": "n", "action": "newItem", "tool": "rectangle"},
         {"event": "keyDown", "key": "e", "action": "editItem", "tool": "rectangle"},
-        {"event": "keyDown", "key": "o", "action": "getColor"},
+        {"event": "keyDown", "key": "l", "action": "grabColor"},
         {"event": "mouseEnter", "action": "dashCallback", "callback": "mouseEnter"},
         {"event": "mouseLeave", "action": "dashCallback", "callback": "mouseLeave"},
     ],

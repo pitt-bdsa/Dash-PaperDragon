@@ -205,12 +205,7 @@ config = {
         },
         {"event": "keyDown", "key": "d", "action": "deleteItem"},
         {"event": "keyDown", "key": "n", "action": "newItem", "tool": "rectangle"},
-        {
-            "event": "keyDown",
-            "key": "o",
-            "action": "dashCallback",
-            "callback": "grabColor",
-        },
+        {"event": "keyDown", "key": "l", "action": "grabColor"},
         {"event": "mouseEnter", "action": "dashCallback", "callback": "mouseEnter"},
         {"event": "mouseLeave", "action": "dashCallback", "callback": "mouseLeave"},
     ],
@@ -1054,9 +1049,7 @@ def update_paper_view(
         if not osdEventType:
             osdEventType = paper_output.get("callback", None)
 
-        if osdEventType == "grabColor":
-            return {"actions": [{"type": "getColor"}]}
-        elif osdEventType in ["mouseLeave", "mouseEnter", "colorGrabbed"]:
+        if osdEventType in ["mouseLeave", "mouseEnter", "colorGrabbed"]:
             return no_update
 
     return no_update
@@ -1338,6 +1331,7 @@ def update_color_display(color_data):
         color_string = get_color_from_pixel(color_data)
         return html.Div(
             [
+                # Color swatch
                 html.Div(
                     style={
                         "backgroundColor": color_string,
@@ -1346,24 +1340,34 @@ def update_color_display(color_data):
                         "display": "inline-block",
                         "marginRight": "5px",
                         "border": "1px solid #ddd",
+                        "borderRadius": "3px",
                     }
                 ),
+                # Color values container
                 html.Div(
                     [
+                        # Hex value
                         html.Span(
                             color_string,
                             style={
                                 "fontFamily": "monospace",
-                                "marginRight": "5px",
+                                "marginRight": "10px",
                                 "fontSize": "0.9em",
+                                "backgroundColor": "rgba(0,0,0,0.05)",
+                                "padding": "2px 4px",
+                                "borderRadius": "3px",
                             },
                         ),
+                        # RGB values
                         html.Span(
-                            f"({color_data['r']},{color_data['g']},{color_data['b']})",
+                            f"RGB({color_data['r']}, {color_data['g']}, {color_data['b']})",
                             style={
+                                "fontFamily": "monospace",
                                 "color": "#666",
-                                "fontSize": "0.8em",
-                                "whiteSpace": "nowrap",
+                                "fontSize": "0.9em",
+                                "backgroundColor": "rgba(0,0,0,0.05)",
+                                "padding": "2px 4px",
+                                "borderRadius": "3px",
                             },
                         ),
                     ],

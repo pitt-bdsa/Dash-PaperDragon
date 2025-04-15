@@ -75,11 +75,10 @@ const DashPaperdragon = (props) => {
     deleteItem,
     dashCallback,
     newItem,
-    getColor,
+    grabColor,
     zoomToBounds,
     addTileSource,
     removeTileSource,
-    grabColor,
     editItem,
   });
 
@@ -386,16 +385,22 @@ const DashPaperdragon = (props) => {
     setProps({ outputFromPaper: { callback: action.callback, data: data } });
   }
 
-  function getColor(opts) {
+  function grabColor(opts) {
+    // Get the current mouse position from the ref
     const mousePos = mousePosRef.current;
     const tiledImage = tiledImageRef.current;
-    if (!tiledImage) return;
+    if (!tiledImage) {
+      console.log('No tiledImage available');
+      return;
+    }
 
     // Convert image coordinates to viewport coordinates
     const viewportPoint = tiledImage.imageToViewportCoordinates(mousePos.x, mousePos.y);
+    console.log('Viewport coordinates:', viewportPoint);
 
     // Convert viewport to viewer element coordinates
     const viewerCoords = tiledImage.viewer.viewport.viewportToViewerElementCoordinates(viewportPoint);
+    console.log('Viewer coordinates:', viewerCoords);
 
     // Get the context and device pixel ratio
     const context = tiledImage.viewer.drawer.canvas.getContext('2d');
@@ -408,6 +413,7 @@ const DashPaperdragon = (props) => {
     // Check if coordinates are within bounds
     const canvas = tiledImage.viewer.drawer.canvas;
     if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) {
+      console.log('Coordinates out of bounds:', { x, y, canvasWidth: canvas.width, canvasHeight: canvas.height });
       return;
     }
 
@@ -419,50 +425,18 @@ const DashPaperdragon = (props) => {
         g: imageData[1],
         b: imageData[2]
       };
-      setProps({
-        pixelColor: pixelColor
-      });
+      console.log('Got pixel color:', pixelColor);
 
-      // Raise an event for other callbacks
-      raiseEvent('color-grabbed', {
-        color: pixelColor,
-        position: mousePos
-      });
+      // Update the pixelColor prop - this triggers the Dash callback
+      setProps({ pixelColor: pixelColor });
+      console.log('Set pixelColor prop:', pixelColor);
+
+      // Also raise the color-grabbed event for any other callbacks
+      raiseEvent('color-grabbed', { color: pixelColor, position: mousePos });
+      console.log('Raised color-grabbed event');
     } catch (error) {
       console.error('Error getting pixel color:', error);
     }
-  }
-
-  function grabColor(opts) {
-    // Get the current mouse position from the ref
-    const mousePos = mousePosRef.current;
-
-    // Get the current tiledImage
-    const tiledImage = tiledImageRef.current;
-    if (!tiledImage) return;
-
-    // Get the context from the canvas
-    const context = tiledImage.viewer.drawer.canvas.getContext('2d');
-    const r = window.devicePixelRatio;
-
-    /* need to convert mousePos to image coordinates */
-    const imageCoords = tiledImage.viewer.viewport.imageToViewerElementCoordinates(mousePos);
-
-    // Get the pixel data at the current mouse position
-    const imageData = context.getImageData(imageCoords.x * r, imageCoords.y * r, 1, 1).data;
-
-    // Convert to RGB object
-    const pixelColor = {
-      r: imageData[0],
-      g: imageData[1],
-      b: imageData[2]
-    };
-
-    // Update the pixelColor prop
-    setProps({ pixelColor });
-
-    // Optionally raise an event for other callbacks
-    raiseEvent('color-grabbed', { color: pixelColor, position: mousePos });
   }
 
   function createViewer() {
@@ -489,7 +463,7 @@ const DashPaperdragon = (props) => {
 
     // suppress default OSD keydown handling for a subset of keys
     viewer.addHandler('canvas-key', event => {
-      if (['q', 'w', 'e', 'r', 'a', 's', 'd', 'f'].includes(event.originalEvent.key)) {
+      if (['q', 'w', 'e', 'r', 'a', 's', 'd', 'f', 'l'].includes(event.originalEvent.key)) {
         event.preventDefaultAction = true;
       }
     });
@@ -547,6 +521,7 @@ const DashPaperdragon = (props) => {
         { mousePosition: mousePosRef.current, item: item });
     }
     view.onKeyDown = ev => {
+      ev.preventDefault(); // Prevent browser default behavior
       if (keyDownRef.current) {
         return;
       }

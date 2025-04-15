@@ -1083,6 +1083,7 @@ key_bindings_modal = dbc.Modal(
                         html.P("Add Checkerboard: 'a'"),
                         html.P("Cycle Property Forward: 'f'"),
                         html.P("Cycle Property Backward: 'b'"),
+                        html.P("Grab Color: 'l'"),
                     ],
                     style={"fontSize": "14px"},
                 )
