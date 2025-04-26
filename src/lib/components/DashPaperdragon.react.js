@@ -81,6 +81,8 @@ const DashPaperdragon = (props) => {
     removeTileSource,
     grabColor,
     editItem,
+    updateHoverState,
+    clearHoverState,
   });
 
   function raiseEvent(eventName, data) {
@@ -291,6 +293,7 @@ const DashPaperdragon = (props) => {
   }
 
   function newItem(opts) {
+    const viewer = viewerRef.current;
     if (creatingRef.current) {
       const item = creatingRef.current;
 
@@ -302,19 +305,44 @@ const DashPaperdragon = (props) => {
         item.selected = false;
         console.log('Item created', item);
         const bounds = item.bounds;
+
+        // Ensure userdata exists and has required properties
+        if (!item.data) item.data = {};
+        if (!item.data.userdata) item.data.userdata = {};
+
+        // Generate a new objectId if one doesn't exist
+        if (!item.data.userdata.objectId) {
+          item.data.userdata.objectId = 'rect_' + Math.random().toString(36).substr(2, 9);
+        }
+
         raiseEvent('item-created', {
           point: { x: bounds.x, y: bounds.y },
-          size: { width: bounds.width, height: bounds.height }
-        })
-        item.remove();
+          size: { width: bounds.width, height: bounds.height },
+          userdata: {
+            objectId: item.data.userdata.objectId,
+            type: 'rectangle',
+            class: item.data.userdata.class || mergedConfig.defaultStyle.class,
+            fillColor: item.fillColor ? item.fillColor.toString() : mergedConfig.defaultStyle.fillColor,
+            strokeColor: item.strokeColor ? item.strokeColor.toString() : mergedConfig.defaultStyle.strokeColor,
+            fillOpacity: item.fillColor ? item.fillColor.alpha : mergedConfig.defaultStyle.fillOpacity,
+            strokeWidth: item.strokeWidth || mergedConfig.defaultStyle.rescale.strokeWidth
+          }
+        });
         creatingRef.current = null;
       }
-
+      if (viewer) viewer.setMouseNavEnabled(true); // Re-enable navigation
     } else {
       console.log('newItem called', opts, paperRef.current.rectangleTool);
       let placeholder = toolkitRef.current.makePlaceholderItem(mergedConfig.defaultStyle);
 
       let item = placeholder.paperItem;
+
+      // Initialize userdata for the placeholder
+      if (!item.data) item.data = {};
+      if (!item.data.userdata) item.data.userdata = {};
+      item.data.userdata.objectId = 'rect_' + Math.random().toString(36).substr(2, 9);
+      item.data.userdata.type = 'rectangle';
+      item.data.userdata.class = mergedConfig.defaultStyle.class;
 
       if (mergedConfig.defaultStyle.fillOpacity !== undefined) {
         item.fillColor.alpha = mergedConfig.defaultStyle.fillOpacity;
@@ -326,8 +354,8 @@ const DashPaperdragon = (props) => {
       creatingRef.current = item;
       item.on('item-replaced', (ev) => creatingRef.current = ev.item);
       paperRef.current.rectangleTool.activate();
+      if (viewer) viewer.setMouseNavEnabled(false); // Disable navigation while drawing
     }
-
   }
 
   function cycleProp(opts, bound, reverse) {
@@ -359,18 +387,15 @@ const DashPaperdragon = (props) => {
 
     // refresh the fill opacity and rescalable properties
     if (item.fillColor) {
-      item.fillColor.alpha = item.fillOpacity;
+      item.fillColor.alpha = item.fillOpacity || 0.2; // Ensure there's always a default opacity
     }
 
-    // Add safety check for applyRescale
-    if (item && typeof item.applyRescale === 'function') {
-      item.applyRescale();
-    } else {
-      // If applyRescale is not available, set default rescale properties
-      if (item) {
-        item.rescale = item.rescale || {};
-        item.rescale.strokeWidth = item.rescale.strokeWidth || 1;
-        // Add any other default rescale properties here if needed
+    // Only try to apply rescale if the item has the necessary properties
+    if (item && typeof item.applyRescale === 'function' && item.rescale) {
+      try {
+        item.applyRescale();
+      } catch (error) {
+        console.warn('Error applying rescale:', error);
       }
     }
 
@@ -809,6 +834,16 @@ const DashPaperdragon = (props) => {
       opts.item.selected = true;
       paperRef.current.rectangleTool.activate();
     }
+  }
+
+  function updateHoverState(opts) {
+    // Set the current shape object for hover
+    setProps({ curShapeObject: opts.item });
+  }
+
+  function clearHoverState(opts) {
+    // Clear the current shape object
+    setProps({ curShapeObject: null });
   }
 
   return (

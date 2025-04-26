@@ -113,3 +113,59 @@ tileSources = [
         ],
     },
 ]
+
+
+tileSourceDict = {}
+for source in tileSources:
+    label = source["label"]
+    tile_sources = source["tileSources"]
+
+    if isinstance(tile_sources, list):
+        # Handle multiple tile sources
+        processed_sources = []
+        for ts in tile_sources:
+            if isinstance(ts, str):
+                processed_sources.append(
+                    {
+                        "tileSource": ts,
+                        "x": 0,
+                        "y": 0,
+                        "opacity": 1,
+                        "rotation": 0,
+                    }
+                )
+            else:
+                # Construct tile source URL from API URL and item ID
+                tile_source_url = f"{ts['api_url']}/item/{ts['item_id']}/tiles/dzi.dzi"
+                processed_sources.append(
+                    {
+                        "tileSource": tile_source_url,
+                        "x": ts.get("x", 0),
+                        "y": ts.get("y", 0),
+                        "opacity": ts.get("opacity", 1),
+                        "rotation": ts.get("rotation", 0),
+                        "layerIdx": ts.get("layerIdx", 0),
+                    }
+                )
+        tileSourceDict[label] = processed_sources
+    else:
+        # Handle single tile source
+        if isinstance(tile_sources, str):
+            tileSourceDict[label] = {
+                "tileSource": tile_sources,
+                "x": 0,
+                "y": 0,
+                "opacity": 1,
+                "rotation": 0,
+            }
+        else:
+            # Construct tile source URL from API URL and item ID
+            tile_source_url = f"{tile_sources['api_url']}/item/{tile_sources['item_id']}/tiles/dzi.dzi"
+            tileSourceDict[label] = {
+                "tileSource": tile_source_url,
+                "x": tile_sources.get("x", 0),
+                "y": tile_sources.get("y", 0),
+                "opacity": tile_sources.get("opacity", 1),
+                "rotation": tile_sources.get("rotation", 0),
+                "layerIdx": tile_sources.get("layerIdx", 0),
+            }
