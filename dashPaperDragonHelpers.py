@@ -687,6 +687,7 @@ def get_box_instructions(x, y, w, h, color, userdata=None):
         "strokeColor": color,
         "fillOpacity": 0.2,
         "strokeWidth": 2,
+        "rescale": {"strokeWidth": 2},
     }
 
     userdata["objectId"] = str(uuid.uuid4())

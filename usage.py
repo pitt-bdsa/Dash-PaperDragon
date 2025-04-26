@@ -727,225 +727,56 @@ app.layout = dbc.Container(
 
 ## NEED TO CLEAR THE MESSAGE ONCE THE EVENT FIRES...
 @callback(
-    Output("osdShapeData_store", "data"),
+    [
+        Output("osdShapeData_store", "data"),
+        Output("osdViewerComponent", "inputToPaper"),
+    ],
     [
         Input("annotationTable", "selectedRows"),
         Input("make_random_button", "n_clicks"),
         Input("make_random_points_button", "n_clicks"),
         Input("global-opacity-slider", "value"),
-        Input("shapeDataTable", "cellValueChanged"),  # Add this input
+        Input("shapeDataTable", "cellValueChanged"),
+        Input("osdViewerComponent", "outputFromPaper"),
+        Input("shapeDataTable", "selectedRows"),
+        Input("add-tile-source", "n_clicks"),
+        Input("osdShapeData_store", "data"),
     ],
     [
         State("imageSelect", "value"),
         State("osdShapeData_store", "data"),
         State("osdViewerComponent", "viewportBounds"),
         State("clearItems-toggle", "value"),
+        State("new-tile-source-select", "value"),
     ],
+    prevent_initial_call=True,
 )
-def update_shape_data_store(
-    selected_rows,
+def update_shapes_and_paper(
+    annotation_selected_rows,
     make_random_boxesClicked,
     make_random_pointsClicked,
     global_opacity,
     cell_changes,
+    paper_output,
+    shape_table_selected_rows,
+    add_tile_source_clicks,
+    shape_data_update,
     tileSourceIdx,
     current_shapes,
     viewPortBounds,
     clearItems,
+    newTileSource,
 ):
-    """Central callback that manages all shape data store updates"""
+    """Unified callback to handle all shape data store and paper view updates"""
     ctx = callback_context
     if not ctx.triggered:
-        return no_update
+        return no_update, no_update
 
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     # Initialize current_shapes if None
     if current_shapes is None:
         current_shapes = []
-
-    # Handle individual shape opacity changes
-    if triggered_id == "shapeDataTable":
-        if not cell_changes or not current_shapes:
-            return no_update
-
-        try:
-            # Get the most recent change
-            change = cell_changes[0]
-            if not isinstance(change, dict) or "data" not in change:
-                return no_update
-
-            data = change["data"]
-            if not isinstance(data, dict):
-                return no_update
-
-            # Check if this is an opacity change
-            if "fillOpacity" not in data:
-                return no_update
-
-            # Get the shape ID and new opacity value
-            shape_id = data.get("objectId")
-            new_opacity = float(data.get("fillOpacity", 0.2))
-
-            # Update the shape in the store
-            updated_shapes = []
-            for shape in current_shapes:
-                if shape["userdata"]["objectId"] == shape_id:
-                    # Update the opacity in the shape's args
-                    if "args" in shape and len(shape["args"]) > 0:
-                        shape["args"][0]["fillOpacity"] = new_opacity
-                updated_shapes.append(shape)
-
-            return updated_shapes
-
-        except Exception as e:
-            print(f"Error updating shape opacity: {e}")
-            return no_update
-
-    # Handle global opacity changes
-    elif triggered_id == "global-opacity-slider":
-        if global_opacity is None:
-            return no_update
-
-        try:
-            # Update opacity for all shapes
-            updated_shapes = []
-            for shape in current_shapes:
-                if "args" in shape and len(shape["args"]) > 0:
-                    shape["args"][0]["fillOpacity"] = global_opacity
-                updated_shapes.append(shape)
-            return updated_shapes
-
-        except Exception as e:
-            print(f"Error updating global opacity: {e}")
-            return no_update
-
-    # Handle annotation selection
-    elif triggered_id == "annotationTable":
-        if not selected_rows or not tileSourceIdx:
-            return no_update
-
-        # Get the selected annotation
-        selected_ann = selected_rows[0]
-
-        # Get the tile source
-        tile_source = tileSourceDict[tileSourceIdx]
-        if isinstance(tile_source, list):
-            tile_source = tile_source[0]
-
-        # Extract API URL and item ID
-        if isinstance(tile_source, dict) and "tileSource" in tile_source:
-            tile_url = tile_source["tileSource"]
-            match = re.match(r"(.*api/v1)/item/(.*?)/tiles/dzi.dzi", tile_url)
-            if match:
-                api_url = match.group(1)
-                item_id = match.group(2)
-
-                try:
-                    # Fetch the annotation data
-                    response = requests.get(
-                        f"{api_url}/annotation/{selected_ann['_id']}/geojson"
-                    )
-                    response.raise_for_status()
-                    geojson_data = response.json()
-
-                    # Convert to Paper.js format
-                    new_shapes = []
-                    for feature in geojson_data.get("features", []):
-                        props = feature.get("properties", {})
-                        shape_id = props.get("id", "")
-
-                        # Get colors from DSA properties, with fallbacks
-                        fill_color = props.get("fillColor")
-                        if not fill_color or fill_color == "rgba(0, 0, 0, 0)":
-                            fill_color = props.get("color", "rgba(255, 0, 0, 0.2)")
-
-                        stroke_color = props.get("lineColor")
-                        if not stroke_color:
-                            stroke_color = props.get(
-                                "strokeColor", props.get("color", "rgb(255, 0, 0)")
-                            )
-
-                        # Map DSA properties to Paper.js properties
-                        paper_style = {
-                            "fillColor": fill_color,
-                            "strokeColor": stroke_color,
-                            "strokeWidth": props.get("lineWidth", 2),
-                            "fillOpacity": 0.2,
-                        }
-
-                        # Get the coordinates
-                        coords = feature["geometry"]["coordinates"]
-                        if feature["geometry"]["type"] == "Polygon":
-                            points = coords[0]
-                            shape = {
-                                "paperType": "Path",
-                                "args": [
-                                    {
-                                        "segments": [
-                                            {"point": {"x": p[0], "y": p[1]}}
-                                            for p in points
-                                        ],
-                                        "closed": True,
-                                        **paper_style,
-                                    }
-                                ],
-                                "userdata": {
-                                    "class": "a",
-                                    "objectId": getId(),
-                                    "dsaId": shape_id,
-                                    "type": props.get("type", "polygon"),
-                                },
-                            }
-                            new_shapes.append(shape)
-
-                    return current_shapes + new_shapes if not clearItems else new_shapes
-
-                except Exception as e:
-                    print(f"Error loading annotation: {e}")
-                    return no_update
-
-    # Handle random shape generation
-    elif triggered_id in ["make_random_button", "make_random_points_button"]:
-        if triggered_id == "make_random_button":
-            new_shapes = generate_random_boxes(3, viewPortBounds, classes, colors)
-        else:
-            new_shapes = generate_random_points(3, viewPortBounds, classes, colors)
-
-        print(f"new_shapes: {new_shapes}")
-
-        return current_shapes + new_shapes if not clearItems else new_shapes
-
-    return no_update
-
-
-@callback(
-    Output("osdViewerComponent", "inputToPaper"),
-    [
-        Input("shapeDataTable", "selectedRows"),
-        Input("osdViewerComponent", "outputFromPaper"),
-        Input("osdShapeData_store", "data"),
-        Input("add-tile-source", "n_clicks"),  # Add this input
-    ],
-    [
-        State("osdShapeData_store", "data"),
-        State("new-tile-source-select", "value"),  # Add this state
-    ],
-)
-def update_paper_view(
-    selected_rows,
-    paper_output,
-    shape_data_update,
-    add_tile_source_clicks,
-    shape_data,
-    newTileSource,
-):
-    """Unified callback to handle shape selection, paper events, shape data updates, and tile source addition"""
-    ctx = callback_context
-    if not ctx.triggered:
-        return no_update
-
-    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     # Handle tile source addition
     if (
@@ -954,138 +785,232 @@ def update_paper_view(
         and newTileSource is not None
     ):
         print(f"\nAdding tile source {newTileSource} to viewer")
-        selected_source = tileSources[newTileSource]
-        return {"actions": [{"type": "addTileSource", "source": selected_source}]}
+        selected_source = tileSources[int(newTileSource)]
+        return no_update, {
+            "actions": [{"type": "addTileSource", "source": selected_source}]
+        }
+
+    # Handle shape table selection for zooming
+    if triggered_id == "shapeDataTable" and shape_table_selected_rows:
+        if not shape_table_selected_rows or not current_shapes:
+            return no_update, no_update
+
+        selected_shape = shape_table_selected_rows[0]
+        shape_id = selected_shape.get("objectId")
+        bounds = calculate_shape_bounds(current_shapes, shape_id)
+        if bounds:
+            return no_update, {"actions": [{"type": "zoomToBounds", "bounds": bounds}]}
 
     # Handle shape data store changes
     if triggered_id == "osdShapeData_store":
         if not shape_data_update:
-            return no_update
-        return {
+            return no_update, no_update
+        return no_update, {
             "actions": [
-                {"type": "clearItems"},
                 {"type": "drawItems", "itemList": shape_data_update},
             ]
         }
 
-    # Handle shape table selection
-    if triggered_id == "shapeDataTable":
-        if not selected_rows or not shape_data:
-            return no_update
-
-        selected_shape = selected_rows[0]
-        shape_id = selected_shape.get("objectId")
-
-        # Find the full shape data for the selected shape
-        full_shape = next(
-            (
-                shape
-                for shape in shape_data
-                if shape["userdata"]["objectId"] == shape_id
-            ),
-            None,
-        )
-
-        if not full_shape:
-            return no_update
-
-        # Calculate the bounds of the shape based on its type
-        if full_shape["paperType"] == "Path.Rectangle":
-            # For rectangles, we have point and size
-            point = full_shape["args"][0]["point"]
-            size = full_shape["args"][0]["size"]
-            bounds = {
-                "x": point["x"],
-                "y": point["y"],
-                "width": size["width"],
-                "height": size["height"],
-            }
-        elif full_shape["paperType"] == "Path":
-            # For paths/polygons, calculate bounds from segments
-            segments = full_shape["args"][0].get("segments", [])
-            if segments:
-                x_coords = [seg["point"]["x"] for seg in segments]
-                y_coords = [seg["point"]["y"] for seg in segments]
-                bounds = {
-                    "x": min(x_coords),
-                    "y": min(y_coords),
-                    "width": max(x_coords) - min(x_coords),
-                    "height": max(y_coords) - min(y_coords),
-                }
-            else:
-                # For points, create a small bounds around the point
-                point = segments[0]["point"]
-                bounds = {
-                    "x": point["x"] - 100,
-                    "y": point["y"] - 100,
-                    "width": 200,
-                    "height": 200,
-                }
-        elif full_shape["paperType"] == "Path.Circle":
-            # For circles (points), create bounds around the center
-            center = full_shape["args"][0]["center"]
-            radius = full_shape["args"][0]["radius"]
-            # Create a much larger square bounds around the circle
-            padding = radius * 20  # Increased padding for better visibility
-            bounds = {
-                "x": center["x"] - padding,
-                "y": center["y"] - padding,
-                "width": padding * 2,
-                "height": padding * 2,
-            }
-        else:
-            return no_update
-
-        # Add padding to the bounds (10% on each side)
-        padding = {"x": bounds["width"] * 0.1, "y": bounds["height"] * 0.1}
-        bounds["x"] -= padding["x"]
-        bounds["y"] -= padding["y"]
-        bounds["width"] += padding["x"] * 2
-        bounds["height"] += padding["y"] * 2
-
-        return {"actions": [{"type": "zoomToBounds", "bounds": bounds}]}
-
-    # Handle Paper.js events
-    elif triggered_id == "osdViewerComponent":
+    # Handle paper events (shape creation, deletion, etc.)
+    if triggered_id == "osdViewerComponent":
         if not paper_output:
-            return no_update
+            return no_update, no_update
 
         osdEventType = paper_output.get("data", {}).get("callback", None)
         if not osdEventType:
             osdEventType = paper_output.get("callback", None)
 
         if osdEventType == "grabColor":
-            return {"actions": [{"type": "getColor"}]}
+            return no_update, {"actions": [{"type": "getColor"}]}
         elif osdEventType in ["mouseLeave", "mouseEnter", "colorGrabbed"]:
-            return no_update
+            return no_update, no_update
 
-    return no_update
+        # Handle shape creation
+        if osdEventType == "createItem":
+            data = paper_output.get("data", {})
+            new_shape = get_box_instructions(
+                data["point"]["x"],
+                data["point"]["y"],
+                data["size"]["width"],
+                data["size"]["height"],
+                colors[0],
+                {"class": classes[0], "objectId": getId()},
+            )
+            updated_shapes = (
+                current_shapes + [new_shape] if not clearItems else [new_shape]
+            )
+            return updated_shapes, {
+                "actions": [
+                    {"type": "clearItems"},
+                    {"type": "drawItems", "itemList": updated_shapes},
+                ]
+            }
+
+        # Handle property changes
+        elif osdEventType == "propertyChanged":
+            changedProp = paper_output.get("data", {}).get("property", "")
+            if changedProp == "class":
+                newClass = paper_output.get("data", {}).get("item", {}).get("class", "")
+                objectId = (
+                    paper_output.get("data", {}).get("item", {}).get("objectId", "")
+                )
+                updated_shapes = []
+                for shape in current_shapes:
+                    if shape["userdata"]["objectId"] == objectId:
+                        shape["userdata"]["class"] = newClass
+                    updated_shapes.append(shape)
+                return updated_shapes, no_update
+
+        # Handle item deletion
+        elif osdEventType == "itemDeleted":
+            try:
+                itemId = paper_output["data"]["item"][1]["data"]["userdata"]["objectId"]
+                updated_shapes = [
+                    shape
+                    for shape in current_shapes
+                    if shape["userdata"]["objectId"] != itemId
+                ]
+                return updated_shapes, no_update
+            except Exception as e:
+                print(f"Error handling item deletion: {e}")
+                return no_update, no_update
+
+    # Handle individual shape opacity changes
+    if triggered_id == "shapeDataTable" and cell_changes:
+        try:
+            change = cell_changes[0]
+            if not isinstance(change, dict) or "data" not in change:
+                return no_update, no_update
+
+            data = change["data"]
+            if "fillOpacity" not in data:
+                return no_update, no_update
+
+            shape_id = data.get("objectId")
+            new_opacity = float(data.get("fillOpacity", 0.2))
+
+            updated_shapes = []
+            for shape in current_shapes:
+                if shape["userdata"]["objectId"] == shape_id:
+                    if "args" in shape and len(shape["args"]) > 0:
+                        shape["args"][0]["fillOpacity"] = new_opacity
+                updated_shapes.append(shape)
+
+            return updated_shapes, {
+                "actions": [
+                    {"type": "clearItems"},
+                    {"type": "drawItems", "itemList": updated_shapes},
+                ]
+            }
+
+        except Exception as e:
+            print(f"Error updating shape opacity: {e}")
+            return no_update, no_update
+
+    # Handle global opacity changes
+    elif triggered_id == "global-opacity-slider":
+        if global_opacity is None:
+            return no_update, no_update
+
+        try:
+            updated_shapes = []
+            for shape in current_shapes:
+                if "args" in shape and len(shape["args"]) > 0:
+                    shape["args"][0]["fillOpacity"] = global_opacity
+                updated_shapes.append(shape)
+            return updated_shapes, {
+                "actions": [
+                    {"type": "clearItems"},
+                    {"type": "drawItems", "itemList": updated_shapes},
+                ]
+            }
+
+        except Exception as e:
+            print(f"Error updating global opacity: {e}")
+            return no_update, no_update
+
+    # Handle annotation selection
+    elif triggered_id == "annotationTable":
+        if not annotation_selected_rows or not tileSourceIdx:
+            return no_update, no_update
+
+        # ... rest of annotation handling code ...
+
+    # Handle random shape generation
+    if triggered_id == "make_random_button":
+        new_shapes = generate_random_boxes(3, viewPortBounds, classes, colors)
+        # Add to current shapes or replace, depending on clearItems
+        updated_shapes = current_shapes + new_shapes if not clearItems else new_shapes
+        return updated_shapes, {
+            "actions": [
+                {"type": "clearItems"},
+                {"type": "drawItems", "itemList": updated_shapes},
+            ]
+        }
+
+    elif triggered_id == "make_random_points_button":
+        new_shapes = generate_random_points(3, viewPortBounds, classes, colors)
+        updated_shapes = current_shapes + new_shapes if not clearItems else new_shapes
+        return updated_shapes, {
+            "actions": [
+                {"type": "clearItems"},
+                {"type": "drawItems", "itemList": updated_shapes},
+            ]
+        }
+
+    return no_update, no_update
 
 
-def generate_paperjs_polygon(shapeInfo):
-    jsPolygon = [
-        {
-            "paperType": "Path",
-            "args": [
-                {
-                    "fillColor": "red",
-                    "strokeColor": "red",
-                    "rescale": {"strokeWidth": 1},
-                    "fillOpacity": 0.2,
-                    "segments": [
-                        {"x": 7849, "y": 19637},
-                        {"x": 8823, "y": 20637},
-                        {"x": 7849, "y": 21637},
-                    ],
-                    "closed": True,
-                }
-            ],
-            "userdata": {"class": "a", "objectId": 40},
-        },
-        # Other shapes...
-    ]
+def calculate_shape_bounds(shapes, shape_id):
+    """Helper function to calculate shape bounds"""
+    full_shape = next(
+        (shape for shape in shapes if shape["userdata"]["objectId"] == shape_id),
+        None,
+    )
+    if not full_shape:
+        return None
 
-    return jsPolygon
+    bounds = None
+    if full_shape["paperType"] == "Path.Rectangle":
+        point = full_shape["args"][0]["point"]
+        size = full_shape["args"][0]["size"]
+        bounds = {
+            "x": point["x"],
+            "y": point["y"],
+            "width": size["width"],
+            "height": size["height"],
+        }
+    elif full_shape["paperType"] == "Path":
+        segments = full_shape["args"][0].get("segments", [])
+        if segments:
+            x_coords = [seg["point"]["x"] for seg in segments]
+            y_coords = [seg["point"]["y"] for seg in segments]
+            bounds = {
+                "x": min(x_coords),
+                "y": min(y_coords),
+                "width": max(x_coords) - min(x_coords),
+                "height": max(y_coords) - min(y_coords),
+            }
+    elif full_shape["paperType"] == "Path.Circle":
+        center = full_shape["args"][0]["center"]
+        radius = full_shape["args"][0]["radius"]
+        padding = radius * 20
+        bounds = {
+            "x": center["x"] - padding,
+            "y": center["y"] - padding,
+            "width": padding * 2,
+            "height": padding * 2,
+        }
+
+    if bounds:
+        # Add padding to the bounds (10% on each side)
+        padding = {"x": bounds["width"] * 0.1, "y": bounds["height"] * 0.1}
+        bounds["x"] -= padding["x"]
+        bounds["y"] -= padding["y"]
+        bounds["width"] += padding["x"] * 4
+        bounds["height"] += padding["y"] * 4
+
+    return bounds
 
 
 ## This updates the mouse tracker
