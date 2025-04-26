@@ -675,6 +675,58 @@ def generate_random_checkerboard(width=2048, height=2048, square_size=256):
     return img_str
 
 
+def calculate_shape_bounds(shapes, shape_id):
+    """Helper function to calculate shape bounds"""
+    full_shape = next(
+        (shape for shape in shapes if shape["userdata"]["objectId"] == shape_id),
+        None,
+    )
+    if not full_shape:
+        return None
+
+    bounds = None
+    if full_shape["paperType"] == "Path.Rectangle":
+        point = full_shape["args"][0]["point"]
+        size = full_shape["args"][0]["size"]
+        bounds = {
+            "x": point["x"],
+            "y": point["y"],
+            "width": size["width"],
+            "height": size["height"],
+        }
+    elif full_shape["paperType"] == "Path":
+        segments = full_shape["args"][0].get("segments", [])
+        if segments:
+            x_coords = [seg["point"]["x"] for seg in segments]
+            y_coords = [seg["point"]["y"] for seg in segments]
+            bounds = {
+                "x": min(x_coords),
+                "y": min(y_coords),
+                "width": max(x_coords) - min(x_coords),
+                "height": max(y_coords) - min(y_coords),
+            }
+    elif full_shape["paperType"] == "Path.Circle":
+        center = full_shape["args"][0]["center"]
+        radius = full_shape["args"][0]["radius"]
+        padding = radius * 20
+        bounds = {
+            "x": center["x"] - padding,
+            "y": center["y"] - padding,
+            "width": padding * 2,
+            "height": padding * 2,
+        }
+
+    if bounds:
+        # Add padding to the bounds (10% on each side)
+        padding = {"x": bounds["width"] * 0.1, "y": bounds["height"] * 0.1}
+        bounds["x"] -= padding["x"]
+        bounds["y"] -= padding["y"]
+        bounds["width"] += padding["x"] * 4
+        bounds["height"] += padding["y"] * 4
+
+    return bounds
+
+
 def get_box_instructions(x, y, w, h, color, userdata=None):
     """Generate instructions for creating a box shape"""
     if userdata is None:

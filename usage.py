@@ -39,6 +39,7 @@ from dashPaperDragonHelpers import (
     mouseLeave,
     mouseEnter,
     colorGrabbed,
+    calculate_shape_bounds,
 )
 
 from dashPaperDragon_defaultLayouts import coordinate_display
@@ -163,90 +164,90 @@ callbacks = {
 
 
 # First, define the column definitions
-tileSourceColumns = [
-    {"field": "layer", "headerName": "Layer", "width": 90},
-    {
-        "field": "visible",
-        "headerName": "Visible",
-        "width": 90,
-        "cellRenderer": "agCheckboxCellRenderer",
-        "editable": True,
-    },
-    {
-        "field": "x_offset",
-        "headerName": "X Offset (px)",
-        "width": 120,
-        "type": "numericColumn",
-        "editable": True,
-    },
-    {
-        "field": "y_offset",
-        "headerName": "Y Offset (px)",
-        "width": 120,
-        "type": "numericColumn",
-        "editable": True,
-    },
-    {
-        "field": "opacity",
-        "headerName": "Opacity",
-        "width": 100,
-        "type": "numericColumn",
-        "editable": True,
-        "valueFormatter": {"function": "params => params.value.toFixed(2)"},
-    },
-    {
-        "field": "rotation",
-        "headerName": "Rotation",
-        "width": 100,
-        "type": "numericColumn",
-        "editable": True,
-    },
-    {
-        "field": "pixelWidth",
-        "headerName": "Image Width",
-        "width": 120,
-        "type": "numericColumn",
-        "editable": False,
-        "valueFormatter": {
-            "function": "params => params.value.toLocaleString() + ' px'"
-        },
-    },
-    {
-        "field": "pixelHeight",
-        "headerName": "Image Height",
-        "width": 120,
-        "type": "numericColumn",
-        "editable": False,
-        "valueFormatter": {
-            "function": "params => params.value.toLocaleString() + ' px'"
-        },
-    },
-]
+# tileSourceColumns = [
+#     {"field": "layer", "headerName": "Layer", "width": 90},
+#     {
+#         "field": "visible",
+#         "headerName": "Visible",
+#         "width": 90,
+#         "cellRenderer": "agCheckboxCellRenderer",
+#         "editable": True,
+#     },
+#     {
+#         "field": "x_offset",
+#         "headerName": "X Offset (px)",
+#         "width": 120,
+#         "type": "numericColumn",
+#         "editable": True,
+#     },
+#     {
+#         "field": "y_offset",
+#         "headerName": "Y Offset (px)",
+#         "width": 120,
+#         "type": "numericColumn",
+#         "editable": True,
+#     },
+#     {
+#         "field": "opacity",
+#         "headerName": "Opacity",
+#         "width": 100,
+#         "type": "numericColumn",
+#         "editable": True,
+#         "valueFormatter": {"function": "params => params.value.toFixed(2)"},
+#     },
+#     {
+#         "field": "rotation",
+#         "headerName": "Rotation",
+#         "width": 100,
+#         "type": "numericColumn",
+#         "editable": True,
+#     },
+#     {
+#         "field": "pixelWidth",
+#         "headerName": "Image Width",
+#         "width": 120,
+#         "type": "numericColumn",
+#         "editable": False,
+#         "valueFormatter": {
+#             "function": "params => params.value.toLocaleString() + ' px'"
+#         },
+#     },
+#     {
+#         "field": "pixelHeight",
+#         "headerName": "Image Height",
+#         "width": 120,
+#         "type": "numericColumn",
+#         "editable": False,
+#         "valueFormatter": {
+#             "function": "params => params.value.toLocaleString() + ' px'"
+#         },
+#     },
+# ]
 
-paperJsShapeColumns = [
-    {"field": "objectId", "headerName": "ID", "width": 70, "maxWidth": 70},
-    {"field": "type", "headerName": "Type", "width": 90},
-    {"field": "class", "headerName": "Class", "width": 80},
-    {"field": "fillColor", "headerName": "Color", "width": 90},
-    {
-        "field": "fillOpacity",
-        "headerName": "Opacity",
-        "width": 120,
-        "type": "numericColumn",
-        "editable": True,
-        "cellRenderer": "agSliderCellRenderer",
-        "cellRendererParams": {
-            "minValue": 0,
-            "maxValue": 1,
-            "step": 0.1,
-            "valueFormatter": {"function": "params => params.value.toFixed(2)"},
-        },
-    },
-    {"field": "x", "headerName": "X", "width": 80, "type": "numericColumn"},
-    {"field": "y", "headerName": "Y", "width": 80, "type": "numericColumn"},
-    {"field": "markerSize", "headerName": "Size", "width": 80, "type": "numericColumn"},
-    {"field": "markerColor", "headerName": "Marker Color", "width": 90},
-]
+# paperJsShapeColumns = [
+#     {"field": "objectId", "headerName": "ID", "width": 70, "maxWidth": 70},
+#     {"field": "type", "headerName": "Type", "width": 90},
+#     {"field": "class", "headerName": "Class", "width": 80},
+#     {"field": "fillColor", "headerName": "Color", "width": 90},
+#     {
+#         "field": "fillOpacity",
+#         "headerName": "Opacity",
+#         "width": 120,
+#         "type": "numericColumn",
+#         "editable": True,
+#         "cellRenderer": "agSliderCellRenderer",
+#         "cellRendererParams": {
+#             "minValue": 0,
+#             "maxValue": 1,
+#             "step": 0.1,
+#             "valueFormatter": {"function": "params => params.value.toFixed(2)"},
+#         },
+#     },
+#     {"field": "x", "headerName": "X", "width": 80, "type": "numericColumn"},
+#     {"field": "y", "headerName": "Y", "width": 80, "type": "numericColumn"},
+#     {"field": "markerSize", "headerName": "Size", "width": 80, "type": "numericColumn"},
+#     {"field": "markerColor", "headerName": "Marker Color", "width": 90},
+# ]
 
 ## Create element
 osdElement = dash_paperdragon.DashPaperdragon(
@@ -394,13 +395,13 @@ app.layout = dbc.Container(
         Output("osdViewerComponent", "inputToPaper"),
     ],
     [
+        Input("shapeDataTable", "cellRendererData"),
         Input("annotationTable", "selectedRows"),
         Input("make_random_button", "n_clicks"),
         Input("make_random_points_button", "n_clicks"),
         Input("global-opacity-slider", "value"),
         Input("shapeDataTable", "cellValueChanged"),
         Input("osdViewerComponent", "outputFromPaper"),
-        Input("shapeDataTable", "selectedRows"),
         Input("add-tile-source", "n_clicks"),
         Input("osdShapeData_store", "data"),
     ],
@@ -413,14 +414,14 @@ app.layout = dbc.Container(
     ],
     prevent_initial_call=True,
 )
-def update_shapes_and_paper(
+def unified_callback(
+    cell_renderer_data,
     annotation_selected_rows,
     make_random_boxesClicked,
     make_random_pointsClicked,
     global_opacity,
     cell_changes,
     paper_output,
-    shape_table_selected_rows,
     add_tile_source_clicks,
     shape_data_update,
     tileSourceIdx,
@@ -429,16 +430,66 @@ def update_shapes_and_paper(
     clearItems,
     newTileSource,
 ):
-    """Unified callback to handle all shape data store and paper view updates"""
     ctx = callback_context
     if not ctx.triggered:
         return no_update, no_update
 
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    print(f"triggered_id: {triggered_id}")
+    # Handle zoom button click
+    if triggered_id == "shapeDataTable":
+        print(ctx.triggered)
+        if ctx.triggered[0]["value"]["colId"] == "zoom":
 
-    # Initialize current_shapes if None
-    if current_shapes is None:
-        current_shapes = []
+            print("cell_renderer_data: ", cell_renderer_data, "is also set")
+            if cell_renderer_data.get("colId") == "zoom":
+                row_index = cell_renderer_data.get("rowIndex")
+                if (
+                    row_index is not None
+                    and current_shapes
+                    and len(current_shapes) > row_index
+                ):
+                    shape = current_shapes[row_index]
+                    shape_id = shape["userdata"]["objectId"]
+                    bounds = calculate_shape_bounds(current_shapes, shape_id)
+                    if bounds:
+                        return no_update, {
+                            "actions": [{"type": "panToBounds", "bounds": bounds}]
+                        }
+            return no_update, no_update
+        elif ctx.triggered[0]["value"] == "cellValueChanged":
+            print("cell_changes: ", cell_changes, "is also set")
+            # Handle individual shape opacity changes
+            if triggered_id == "shapeDataTable" and cell_changes:
+                try:
+                    change = cell_changes[0]
+                    if not isinstance(change, dict) or "data" not in change:
+                        return no_update, no_update
+
+                    data = change["data"]
+                    if "fillOpacity" not in data:
+                        return no_update, no_update
+
+                    shape_id = data.get("objectId")
+                    new_opacity = float(data.get("fillOpacity", 0.2))
+
+                    updated_shapes = []
+                    for shape in current_shapes:
+                        if shape["userdata"]["objectId"] == shape_id:
+                            if "args" in shape and len(shape["args"]) > 0:
+                                shape["args"][0]["fillOpacity"] = new_opacity
+                        updated_shapes.append(shape)
+
+                    return updated_shapes, {
+                        "actions": [
+                            {"type": "clearItems"},
+                            {"type": "drawItems", "itemList": updated_shapes},
+                        ]
+                    }
+
+                except Exception as e:
+                    print(f"Error updating shape opacity: {e}")
+                    return no_update, no_update
 
     # Handle tile source addition
     if (
@@ -452,25 +503,12 @@ def update_shapes_and_paper(
             "actions": [{"type": "addTileSource", "source": selected_source}]
         }
 
-    # Handle shape table selection for zooming
-    if triggered_id == "shapeDataTable" and shape_table_selected_rows:
-        if not shape_table_selected_rows or not current_shapes:
-            return no_update, no_update
-
-        selected_shape = shape_table_selected_rows[0]
-        shape_id = selected_shape.get("objectId")
-        bounds = calculate_shape_bounds(current_shapes, shape_id)
-        if bounds:
-            return no_update, {"actions": [{"type": "zoomToBounds", "bounds": bounds}]}
-
     # Handle shape data store changes
     if triggered_id == "osdShapeData_store":
         if not shape_data_update:
             return no_update, no_update
         return no_update, {
-            "actions": [
-                {"type": "drawItems", "itemList": shape_data_update},
-            ]
+            "actions": [{"type": "drawItems", "itemList": shape_data_update}]
         }
 
     # Handle paper events (shape creation, deletion, etc.)
@@ -537,38 +575,6 @@ def update_shapes_and_paper(
                 print(f"Error handling item deletion: {e}")
                 return no_update, no_update
 
-    # Handle individual shape opacity changes
-    if triggered_id == "shapeDataTable" and cell_changes:
-        try:
-            change = cell_changes[0]
-            if not isinstance(change, dict) or "data" not in change:
-                return no_update, no_update
-
-            data = change["data"]
-            if "fillOpacity" not in data:
-                return no_update, no_update
-
-            shape_id = data.get("objectId")
-            new_opacity = float(data.get("fillOpacity", 0.2))
-
-            updated_shapes = []
-            for shape in current_shapes:
-                if shape["userdata"]["objectId"] == shape_id:
-                    if "args" in shape and len(shape["args"]) > 0:
-                        shape["args"][0]["fillOpacity"] = new_opacity
-                updated_shapes.append(shape)
-
-            return updated_shapes, {
-                "actions": [
-                    {"type": "clearItems"},
-                    {"type": "drawItems", "itemList": updated_shapes},
-                ]
-            }
-
-        except Exception as e:
-            print(f"Error updating shape opacity: {e}")
-            return no_update, no_update
-
     # Handle global opacity changes
     elif triggered_id == "global-opacity-slider":
         if global_opacity is None:
@@ -582,7 +588,7 @@ def update_shapes_and_paper(
                 updated_shapes.append(shape)
             return updated_shapes, {
                 "actions": [
-                    {"type": "clearItems"},
+                    # {"type": "clearItems"},
                     {"type": "drawItems", "itemList": updated_shapes},
                 ]
             }
@@ -621,58 +627,6 @@ def update_shapes_and_paper(
         }
 
     return no_update, no_update
-
-
-def calculate_shape_bounds(shapes, shape_id):
-    """Helper function to calculate shape bounds"""
-    full_shape = next(
-        (shape for shape in shapes if shape["userdata"]["objectId"] == shape_id),
-        None,
-    )
-    if not full_shape:
-        return None
-
-    bounds = None
-    if full_shape["paperType"] == "Path.Rectangle":
-        point = full_shape["args"][0]["point"]
-        size = full_shape["args"][0]["size"]
-        bounds = {
-            "x": point["x"],
-            "y": point["y"],
-            "width": size["width"],
-            "height": size["height"],
-        }
-    elif full_shape["paperType"] == "Path":
-        segments = full_shape["args"][0].get("segments", [])
-        if segments:
-            x_coords = [seg["point"]["x"] for seg in segments]
-            y_coords = [seg["point"]["y"] for seg in segments]
-            bounds = {
-                "x": min(x_coords),
-                "y": min(y_coords),
-                "width": max(x_coords) - min(x_coords),
-                "height": max(y_coords) - min(y_coords),
-            }
-    elif full_shape["paperType"] == "Path.Circle":
-        center = full_shape["args"][0]["center"]
-        radius = full_shape["args"][0]["radius"]
-        padding = radius * 20
-        bounds = {
-            "x": center["x"] - padding,
-            "y": center["y"] - padding,
-            "width": padding * 2,
-            "height": padding * 2,
-        }
-
-    if bounds:
-        # Add padding to the bounds (10% on each side)
-        padding = {"x": bounds["width"] * 0.1, "y": bounds["height"] * 0.1}
-        bounds["x"] -= padding["x"]
-        bounds["y"] -= padding["y"]
-        bounds["width"] += padding["x"] * 4
-        bounds["height"] += padding["y"] * 4
-
-    return bounds
 
 
 # osdShapeData
